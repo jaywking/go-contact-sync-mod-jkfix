@@ -1,0 +1,34 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<RuleSet Name="Rules for GoogleContactsSync" Description="Code analysis rules for GoogleContactsSync.csproj." ToolsVersion="14.0">
+  <IncludeAll Action="Warning" />
+  <Rules AnalyzerId="Microsoft.Analyzers.ManagedCodeAnalysis" RuleNamespace="Microsoft.Rules.Managed">
+    <Rule Id="CA1026" Action="None" />
+    <Rule Id="CA1031" Action="None" />
+    <Rule Id="CA1053" Action="None" />
+    <Rule Id="CA1300" Action="None" />
+    <Rule Id="CA1303" Action="None" />
+    <Rule Id="CA1304" Action="None" />
+    <Rule Id="CA1305" Action="None" />
+    <Rule Id="CA1307" Action="None" />
+    <Rule Id="CA1309" Action="None" />
+    <Rule Id="CA1502" Action="None" />
+    <Rule Id="CA1505" Action="None" />
+    <Rule Id="CA1506" Action="None" />
+    <Rule Id="CA1601" Action="None" />
+    <Rule Id="CA1704" Action="None" />
+    <Rule Id="CA1707" Action="None" />
+    <Rule Id="CA1709" Action="None" />
+    <Rule Id="CA1801" Action="None" />
+    <Rule Id="CA1804" Action="None" />
+    <Rule Id="CA1809" Action="None" />
+    <Rule Id="CA1810" Action="None" />
+    <Rule Id="CA1811" Action="None" />
+    <Rule Id="CA1822" Action="None" />
+    <Rule Id="CA2001" Action="None" />
+    <Rule Id="CA2004" Action="None" />
+    <Rule Id="CA2201" Action="None" />
+    <Rule Id="CA2204" Action="None" />
+    <Rule Id="CA2208" Action="None" />
+    <Rule Id="CA2210" Action="None" />
+  </Rules>
+</RuleSet>

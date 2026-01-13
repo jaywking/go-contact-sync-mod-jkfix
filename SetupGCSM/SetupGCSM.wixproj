@@ -1,0 +1,197 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="..\packages\wix.3.14.1\build\wix.props" Condition="Exists('..\packages\wix.3.14.1\build\wix.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <ProductVersion>3.9</ProductVersion>
+    <ProjectGuid>{9dca19a6-3be4-435b-97fc-963da094be5a}</ProjectGuid>
+    <SchemaVersion>2.0</SchemaVersion>
+    <OutputName>SetupGCSM</OutputName>
+    <OutputType>Package</OutputType>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
+    <Name>SetupGCSM</Name>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">$(MSBuildProjectDirectory)\..\</SolutionDir>
+    <RestorePackages>true</RestorePackages>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
+    <OutputPath>$(ProjectDir)Packages\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>
+    </DefineConstants>
+    <Cultures>en-us</Cultures>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
+    <OutputPath>$(ProjectDir)Packages\</OutputPath>
+    <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
+    <DefineConstants>
+    </DefineConstants>
+    <Cultures>en-us</Cultures>
+    <SuppressPdbOutput>True</SuppressPdbOutput>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Fragments\BinariesFragment.wxs" />
+    <Compile Include="Fragments\Shortcuts.wxs" />
+    <Compile Include="Setup.wxs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Fragments" />
+    <Folder Include="Includes" />
+    <Folder Include="Lang" />
+    <Folder Include="Lang\de-de\" />
+    <Folder Include="Lang\en-us" />
+    <Folder Include="Resources" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="HarvestTransform.xsl" />
+    <Content Include="Includes\Variables.wxi" />
+    <Content Include="Lang\GPLv3.rtf" />
+    <Content Include="packages.config" />
+    <Content Include="README.md">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\WixUIDialogBanner.bmp" />
+    <Content Include="Resources\WixUITopBanner.bmp" />
+    <Content Include="TODO.txt" />
+    <Content Include="upload2sf.template.ps1" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Lang\de-de\Loc_de-de.wxl" />
+    <EmbeddedResource Include="Lang\en-us\Loc_en-us.wxl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GoogleContactsSync\GoogleContactsSync.csproj">
+      <Name>GoogleContactsSync</Name>
+      <Project>{e43ce572-6694-461d-a4dc-2db768a7665a}</Project>
+      <Private>True</Private>
+      <DoNotHarvest>True</DoNotHarvest>
+      <RefProjectOutputGroups>Binaries;Content;Satellites</RefProjectOutputGroups>
+      <RefTargetDir>INSTALLFOLDER</RefTargetDir>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <WixExtension Include="WixNetFxExtension">
+      <HintPath>..\packages\WiX.3.11.2\tools\WixNetFxExtension.dll</HintPath>
+      <Name>WixNetFxExtension</Name>
+    </WixExtension>
+    <WixExtension Include="WixUIExtension">
+      <HintPath>..\packages\WiX.3.11.2\tools\WixUIExtension.dll</HintPath>
+      <Name>WixUIExtension</Name>
+    </WixExtension>
+    <WixExtension Include="WixUtilExtension">
+      <HintPath>..\packages\WiX.3.11.2\tools\WixUtilExtension.dll</HintPath>
+      <Name>WixUtilExtension</Name>
+    </WixExtension>
+  </ItemGroup>
+  <Import Project="$(WixTargetsPath)" />
+  <!--
+	To modify your build process, add your task inside one of the targets below and uncomment it.
+	Other similar extension points exist, see Wix.targets.
+	-->
+  <!--
+  <Target Name="BeforeBuild">
+    <HeatProject ToolPath="$(WixToolPath)" GenerateGuidsNow="true" OutputFile="$(ProjectDir)Fragments\BinariesAndSymbolsFilesFragment.wxs" SuppressFragments="true" Project="$(SolutionDir)GoogleContactsSync\GoogleContactsSync.csproj" ProjectOutputGroups="Binaries;Symbols" />
+  </Target>
+  -->
+  <Target Name="BeforeBuild">
+    <Message Text="$(TestProperty)" Importance="high" />
+    <!--Read AssemblyInfo.cs-->
+    <GetAssemblyIdentity AssemblyFiles="$(SolutionDir)GoogleContactsSync\bin\$(Configuration)\GoContactSync.exe">
+      <Output TaskParameter="Assemblies" ItemName="AssemblyVersions" />
+    </GetAssemblyIdentity>
+    <!--Read Assembly version-->
+    <CreateProperty Value="%(AssemblyVersions.Version)">
+      <Output TaskParameter="Value" PropertyName="AssyVersion" />
+    </CreateProperty>
+    <!--create short version number-->
+    <CreateProperty Value="$(AssyVersion.Split('.')[0]).$(AssyVersion.Split('.')[1]).$(AssyVersion.Split('.')[2])">
+      <Output TaskParameter="Value" PropertyName="ShortAssemblyVersion" />
+    </CreateProperty>
+    <CreateProperty Value="$(DefineConstants);ShortAssemblyVersion=$(ShortAssemblyVersion)">
+      <Output TaskParameter="Value" PropertyName="DefineConstants" />
+    </CreateProperty>
+    <CreateProperty Value="$(OutputName)-$(ShortAssemblyVersion)">
+      <Output TaskParameter="Value" PropertyName="TargetName" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetName)$(TargetExt)">
+      <Output TaskParameter="Value" PropertyName="TargetFileName" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetDir)$(TargetFileName)">
+      <Output TaskParameter="Value" PropertyName="TargetPath" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetDir)en-us\GCSM-$(ShortAssemblyVersion)-($(Configuration)).zip">
+      <Output TaskParameter="Value" PropertyName="TargetZipFile" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetDir)en-us\$(ShortAssemblyVersion)">
+      <Output TaskParameter="Value" PropertyName="TargetVersionDirectory" />
+    </CreateProperty>
+    <MakeDir Directories="$(TargetVersionDirectory)" />
+  </Target>
+  <PropertyGroup>
+    <PostBuildEvent />
+  </PropertyGroup>
+  <Import Project="$(SolutionDir)\.nuget\NuGet.targets" Condition="Exists('$(SolutionDir)\.nuget\NuGet.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>Dieses Projekt verweist auf mindestens ein NuGet-Paket, das auf diesem Computer fehlt. Aktivieren Sie die Wiederherstellung von NuGet-Paketen, um die fehlende Datei herunterzuladen. Weitere Informationen finden Sie unter "http://go.microsoft.com/fwlink/?LinkID=322105". Die fehlende Datei ist "{0}".</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(SolutionDir)\.nuget\NuGet.targets')" Text="$([System.String]::Format('$(ErrorText)', '$(SolutionDir)\.nuget\NuGet.targets'))" />
+    <Error Condition="!Exists('..\packages\wix.3.14.1\build\wix.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\wix.3.14.1\build\wix.props'))" />
+  </Target>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
+    <DefineConstants>
+    </DefineConstants>
+    <OutputPath>bin\$(Platform)\$(Configuration)\</OutputPath>
+    <IntermediateOutputPath>obj\$(Platform)\$(Configuration)\</IntermediateOutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
+    <DefineConstants>
+    </DefineConstants>
+    <OutputPath>$(ProjectDir)Packages\</OutputPath>
+    <IntermediateOutputPath>obj\$(Platform)\$(Configuration)\</IntermediateOutputPath>
+  </PropertyGroup>
+  <Target Name="ZipReleaseBuildEn" AfterTargets="Build">
+    <ZipDirectory SourceDirectory="$(SolutionDir)GoogleContactsSync\bin\$(Configuration)" DestinationFile="$(TargetZipFile)" Overwrite="true" />
+  </Target>
+  <Target Name="MoveReleaseFiles" AfterTargets="ZipReleaseBuildEn">
+    <Move SourceFiles="$(TargetZipFile)" DestinationFolder="$(TargetVersionDirectory)" />
+    <Move SourceFiles="$(TargetPath)" DestinationFolder="$(TargetVersionDirectory)" />
+  </Target>
+  <Target Name="CreateVersionFileForAutoUpdate" AfterTargets="ZipReleaseBuildEn">
+    <ItemGroup>
+      <Line Include="line00">
+        <Text>&lt;?xml version="1.0" encoding="utf-8"?&gt;</Text>
+      </Line>
+      <Line Include="line01">
+        <Text>&lt;Version&gt;$(ShortAssemblyVersion)&lt;/Version&gt;</Text>
+      </Line>
+      <LineText Include="%(Line.Text)" />
+    </ItemGroup>
+    <WriteLinesToFile File="$(ProjectDir)Packages\en-us\updates_v1.xml" Lines="@(LineText)" Overwrite="true" />
+  </Target>
+  <Target Name="CreateUploadBatchForSourceforgeReleaseSystem" AfterTargets="CreateVersionFileForAutoUpdate">
+    <WriteLinesToFile File="$(ProjectDir)Packages\en-us\upload2sf.ps1" Lines="$([System.IO.File]::ReadAllText($(ProjectDir)upload2sf.template.ps1).Replace('&lt;release&gt;','$(ShortAssemblyVersion)'))" Overwrite="true" />
+  </Target>
+  <!--
+	<Target Name="WriteVersionToUpdaterFile" AfterTargets="Build">
+		<XmlPoke
+			XmlInputPath="$(ProjectDir)Packages\updates_v1.txt"
+			Value="$(ShortAssemblyVersion)"
+			Query="Version"
+		/>
+	</Target>
+	-->
+  <Target Name="RemoveReleaseFiles" AfterTargets="Clean">
+    <RemoveDir Directories="$(TargetDir)en-us" />
+    <ItemGroup>
+      <FilesToDelete Include="$(TargetDir)**\*" />
+    </ItemGroup>
+    <Delete Files="@(FilesToDelete)" />
+  </Target>
+  <PropertyGroup>
+    <PreBuildEvent>"$(SolutionDir)packages\wix.3.14.1\tools\heat.exe" dir "$(SolutionDir)GoogleContactsSync\bin\$(Configuration)" -cg GoogleContactsSync.Binaries -gg -scom -sreg -sfrag -srd -dr INSTALLLOCATION  -var var.GoogleContactsSync.TargetDir -v -t "$(ProjectDir)HarvestTransform.xsl" -out "$(ProjectDir)Fragments\BinariesFragment.wxs"</PreBuildEvent>
+  </PropertyGroup>
+</Project>

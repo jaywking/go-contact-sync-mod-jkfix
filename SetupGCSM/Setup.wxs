@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi" xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <!-- This is how we include wxi files -->
+  <?include $(sys.CURRENTDIR)Includes\Variables.wxi ?>
+
+  <Product Id="*"
+           Name="!(loc.ProductName)"
+           Language="!(loc.LANG)"
+           Version="$(var.ShortAssemblyVersion)"
+           Manufacturer="$(var.ManufacturerName)"
+           UpgradeCode="$(var.UpgradeCode)">
+
+    <!-- Define the minimum supported installer version (3.0) and that the install should be done for the whole machine not just the current user -->
+    <Package InstallerVersion="300" Compressed="yes" InstallScope="perMachine"/>
+
+    <Media Id="1" Cabinet="gcsm.cab" EmbedCab="yes" />
+
+    <MajorUpgrade
+      DowngradeErrorMessage="!(loc.GoogleContactSyncModNewerVersionInstalled)"
+      AllowDowngrades="no"
+      AllowSameVersionUpgrades="no"
+      />
+
+    <!--
+    <Binary Id="RemoveOldMsiCustomActionDll"
+            SourceFile="$(var.RemoveOldMsi.TargetDir)RemoveOldMsi.CA.dll" />
+
+   
+    <CustomAction Id="RemoveOldMsiAction"
+                  Return="check"
+                  Execute="oncePerProcess"
+                  BinaryKey="RemoveOldMsiCustomActionDll"
+                  DllEntry="RemoveOldMsi"
+                  />
+  -->
+
+
+    <Property Id="OLDVERSIONDETECTED">
+      <RegistrySearch Id="RegSearch_v3.7.3"
+                      Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{6CB0E739-787A-470D-875E-54F0DDB95877}" 
+                      Name="DisplayName"
+                      Root="HKLM" 
+                      Type="raw"
+                      Win64="no"
+                       />
+      <RegistrySearch Id="RegSearch_v3.7.2"
+                      Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{709C09E6-A960-4651-B40D-66F6E0952A72}"
+                      Name="DisplayName"
+                      Root="HKLM"
+                      Type="raw"
+                      Win64="no"
+                       />
+      <RegistrySearch Id="RegSearch_v3.7.1"
+                      Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{351A00AB-1377-4C86-B27B-A5AC6B50F997}"
+                      Name="DisplayName"
+                      Root="HKLM"
+                      Type="raw"
+                      Win64="no"
+                       />
+
+      <RegistrySearch Id="RegSearch_v3.7.0"
+                      Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{53FC4926-9B88-48C1-BBE9-8C1DD515C357}"
+                      Name="DisplayName"
+                      Root="HKLM"
+                      Type="raw"
+                      Win64="no"
+                       />
+      <RegistrySearch Id="RegSearch_v3.6.1"
+                      Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{CD178FDD-086A-4C2E-935E-8CDB747B0F29}"
+                      Name="DisplayName"
+                      Root="HKLM"
+                      Type="raw"
+                      Win64="no"
+                       />
+      <RegistrySearch Id="RegSearch_v2.3"
+                      Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{60935927-2D24-4753-9902-296986141733}"
+                      Name="DisplayName"
+                      Root="HKLM"
+                      Type="raw"
+                      Win64="no"
+                       />
+    </Property>
+    <Condition Message="!(loc.OldVersionFound)">Installed OR NOT OLDVERSIONDETECTED</Condition>
+    
+    <!-- Reference the global NETFRAMEWORKxx property to check if it exists -->
+    
+    <PropertyRef Id="NETFRAMEWORK45"/>
+    
+    <!-- 
+    Startup conditions that checks if .Net Framework 4.5 is installed or if 
+    we're running the OS higher than Windows Vista SP1.
+    If not the installation is aborted.
+    By doing the (Installed OR ...) property means that this condition will only 
+    be evaluated if the app is being installed and not on uninstall or changing
+    -->
+    
+    <Condition Message="!(loc.DotNet472FrameworkNeeded)">
+      <![CDATA[Installed OR (NETFRAMEWORK45 >= "#461808")]]>
+    </Condition>
+    
+    <Condition Message="!(loc.AppNotSupported)">
+      <![CDATA[Installed OR (VersionNT >= 601)]]>
+    </Condition>
+
+    <!-- 
+    This custom action in the InstallExecuteSequence is needed to 
+    stop silent install (passing /qb to msiexec) from going around it. 
+    
+    <CustomAction Id="NewerVersionFound" Error="!(loc.GoogleContactSyncModNewerVersionInstalled)" />
+    -->
+    <InstallExecuteSequence>
+      <!--      <Custom Action="RemoveOldMsiAction" After="FindRelatedProducts"/>
+      -->
+      <!-- WixCloseApplications is a built in custom action that uses util:CloseApplication below -->
+      <Custom Action="WixCloseApplications" Before="InstallInitialize" />
+    </InstallExecuteSequence>
+
+
+
+    <!-- This will ask the user to close the SuperForm app if it's running while upgrading -->
+    <util:CloseApplication Id="CloseGoogleContactSyncMod" CloseMessage="no" Description="!(loc.MustCloseGoogleContactSyncMod)"
+                           ElevatedCloseMessage="no" RebootPrompt="no" Target="$(var.ExeProcessName)" />
+
+    <!--customize UI -->
+
+    <!--set logo-->
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ResourcesDir)WixUITopBanner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ResourcesDir)WixUIDialogBanner.bmp" />
+    
+    <!--add licence to installer -->
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectDir)Lang\GPLv3.rtf" />
+
+   
+    <!-- Use the built in WixUI_InstallDir GUI -->
+    
+      <UI>
+     
+      <UIRef Id="WixUI_InstallDir" />
+      
+      
+      <Publish Dialog="ExitDialog"
+         Control="Finish"
+         Event="DoAction"
+         Value="LaunchApplication">WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 and NOT Installed</Publish>
+      
+    </UI>
+    
+    <!-- Set the icon to show next to the program name in Add/Remove programs -->
+    <Icon Id="GoogleContactsSyncMod.ico" SourceFile="$(var.SolutionDir)GoogleContactsSync\Resources\contacts-sync.ico" />
+    <Property Id="ARPPRODUCTICON" Value="GoogleContactsSyncMod.ico" />
+
+    <!-- the default directory structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="INSTALLLOCATION" Name="!(loc.ProductName)" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="!(loc.ProductName)"/>
+      </Directory>
+    </Directory>
+    <!-- 
+    Set the default install location to the value of 
+    INSTALLLOCATION (usually c:\Program Files\YourProductName) 
+    -->
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLLOCATION" />
+    <!-- Set the components defined in our fragment files that will be used for our feature  -->
+    <Feature Id="GoogleContactSyncModFeature" Title="!(loc.ProductName)" Level="1">
+
+      <!--remove Interop DLL from setup, because it is embedded in executable-->
+      <!--<ComponentGroupRef Id="MicrosoftAPIFiles"/>-->
+      <ComponentGroupRef Id="GoogleContactsSync.Binaries"/>
+      <ComponentGroupRef Id="Shortcuts"/>
+
+    </Feature>
+
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="!(loc.RunAfterInstall)" />
+
+    <Property Id="WixShellExecTarget" Value="[#fil477678C73DB17A7805DE14031B7B5A86]" />
+    <CustomAction Id="LaunchApplication"
+                  BinaryKey="WixCA"
+                  DllEntry="WixShellExec"
+                  Impersonate="yes" />
+  </Product>
+</Wix>

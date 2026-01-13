@@ -1,0 +1,32 @@
+﻿TODO:
+
+- download .net automatically - create bundle project 
+
+DONE:
+
+- add portable release zip (no install)
+- custom banner images
+- added start menu shortcut
+- choice for starting after install
+- get version number from AssemblyInfo.cs from Project GoContactsSync
+- localized installer for
+	 German (currently disabled)
+	 English
+- auto rename installer file (with version number)
+
+INSTALL CHECKS:
+
+- check if .net is installed
+- check if newer version is installed
+- upgrade old version
+- auto-harvest GoogleAPI directory and add all files to installation
+- auto-harvest OutlookAPI directory and add all files to installation
+
+OLD SETUP PRODUCT CODES:
+
+3.7.3 {6CB0E739-787A-470D-875E-54F0DDB95877}
+3.7.2 {709C09E6-A960-4651-B40D-66F6E0952A72}
+3.7.1 {351A00AB-1377-4C86-B27B-A5AC6B50F997}
+3.7.0 {53FC4926-9B88-48C1-BBE9-8C1DD515C357}
+3.6.1 {CD178FDD-086A-4C2E-935E-8CDB747B0F29}
+2.3   {60935927-2D24-4753-9902-296986141733}

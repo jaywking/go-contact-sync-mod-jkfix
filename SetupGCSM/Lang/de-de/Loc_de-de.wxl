@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="de-de" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  <String Id="LANG">1031</String>
+  <String Id="ProductName">GO Contact Sync Mod</String>
+  <String Id="LicenseRtf" Overridable="yes">$(var.ProjectDir)Lang\GPLv3.rtf</String>
+  <String Id="AppNotSupported">Dieses Programm wird nicht für ihr laufendes Betriebssystem unterstützt. Sie benötigen mindestens Windows 7.</String>
+  <String Id="DotNet472FrameworkNeeded">Das .NET Framework 4.7.1 wird benötigt. Bitte installieren Sie dieses vorher und starten die Installation erneut.</String>
+  <String Id="MustCloseGoogleContactSyncMod">GO Contact Sync Mod muss geschlossen werden!</String>
+  <String Id="GoogleContactSyncModNewerVersionInstalled">Eine aktuellere Version von !(loc.ProductName) ist schon installiert.</String>
+  <String Id="RunAfterInstall">Starte !(loc.ProductName) nach der Installation?</String>
+  <String Id="OldVersionFound">Es wurde eine alte Version (&lt;v3.8.0) von !(loc.ProductName) gefunden. Deinstallieren Sie bitte zuerst die alte Version, bevor Sie fortfahren. Für Versionen (&gt;v3.8.0) erfolgt das Upgrade wieder automatisch!</String>
+</WixLocalization>
