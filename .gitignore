@@ -2,6 +2,7 @@ GoogleContactsSync/bin/
 GoogleContactsSync/obj/
 SetupGCSM/obj/
 SetupGCSM/Packages/
+SetupGCSM/Fragments/BinariesFragment.wxs
 packages/
 dist/
 *.log

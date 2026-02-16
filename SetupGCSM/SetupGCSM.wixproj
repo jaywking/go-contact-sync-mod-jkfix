@@ -9,6 +9,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <OutputName>SetupGCSM</OutputName>
     <OutputType>Package</OutputType>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND Exists('$(SolutionDir)packages\wix.3.14.1\tools\wix.targets')">$(SolutionDir)packages\wix.3.14.1\tools\wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <Name>SetupGCSM</Name>
