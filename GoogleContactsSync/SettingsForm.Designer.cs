@@ -87,9 +87,12 @@ namespace GoContactSyncMod
             this.cmbSyncProfile = new System.Windows.Forms.ComboBox();
             this.contactFoldersComboBox = new System.Windows.Forms.ComboBox();
             this.syncProfileLabel = new System.Windows.Forms.Label();
+            this.outlookStartModeLabel = new System.Windows.Forms.Label();
+            this.outlookStartModeComboBox = new System.Windows.Forms.ComboBox();
+            this.profileBindingLabel = new System.Windows.Forms.Label();
             this.lastSyncLabel = new System.Windows.Forms.Label();
             this.logGroupBox = new System.Windows.Forms.GroupBox();
-            this.syncConsole = new System.Windows.Forms.TextBox();
+            this.syncConsole = new System.Windows.Forms.RichTextBox();
             this.googleAccountGroupBox = new System.Windows.Forms.GroupBox();
             this.linkLabelRevokeAuthentication = new System.Windows.Forms.LinkLabel();
             this.chkUseFileAs = new System.Windows.Forms.CheckBox();
@@ -392,6 +395,9 @@ namespace GoContactSyncMod
             this.syncOptionsGroupBox.Controls.Add(this.cmbSyncProfile);
             this.syncOptionsGroupBox.Controls.Add(this.contactFoldersComboBox);
             this.syncOptionsGroupBox.Controls.Add(this.syncProfileLabel);
+            this.syncOptionsGroupBox.Controls.Add(this.outlookStartModeLabel);
+            this.syncOptionsGroupBox.Controls.Add(this.outlookStartModeComboBox);
+            this.syncOptionsGroupBox.Controls.Add(this.profileBindingLabel);
             this.syncOptionsGroupBox.Controls.Add(this.syncOptionBox);
             this.syncOptionsGroupBox.Location = new System.Drawing.Point(5, 115);
             this.syncOptionsGroupBox.Name = "syncOptionsGroupBox";
@@ -1004,6 +1010,44 @@ namespace GoContactSyncMod
             this.syncProfileLabel.TabIndex = 0;
             this.syncProfileLabel.Text = "&Sync Profile:";
             // 
+            // outlookStartModeLabel
+            // 
+            this.outlookStartModeLabel.AutoSize = true;
+            this.outlookStartModeLabel.Location = new System.Drawing.Point(208, 47);
+            this.outlookStartModeLabel.Name = "outlookStartModeLabel";
+            this.outlookStartModeLabel.Size = new System.Drawing.Size(67, 13);
+            this.outlookStartModeLabel.TabIndex = 35;
+            this.outlookStartModeLabel.Text = "Outlook start:";
+            // 
+            // outlookStartModeComboBox
+            // 
+            this.outlookStartModeComboBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.outlookStartModeComboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.outlookStartModeComboBox.FormattingEnabled = true;
+            this.outlookStartModeComboBox.Items.AddRange(new object[] {
+            "Prompt",
+            "Auto-start Outlook",
+            "Skip check"});
+            this.outlookStartModeComboBox.Location = new System.Drawing.Point(291, 44);
+            this.outlookStartModeComboBox.Name = "outlookStartModeComboBox";
+            this.outlookStartModeComboBox.Size = new System.Drawing.Size(214, 21);
+            this.outlookStartModeComboBox.TabIndex = 36;
+            this.toolTip.SetToolTip(this.outlookStartModeComboBox, "Prompt: ask before sync if Outlook is closed.\r\nAuto-start: launch Outlook before" +
+        " sync.\r\nSkip check: continue without checking Outlook process.");
+            this.outlookStartModeComboBox.SelectedIndexChanged += new System.EventHandler(this.OutlookStartModeComboBox_SelectedIndexChanged);
+            // 
+            // profileBindingLabel
+            // 
+            this.profileBindingLabel.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.profileBindingLabel.AutoEllipsis = true;
+            this.profileBindingLabel.Location = new System.Drawing.Point(6, 168);
+            this.profileBindingLabel.Name = "profileBindingLabel";
+            this.profileBindingLabel.Size = new System.Drawing.Size(499, 13);
+            this.profileBindingLabel.TabIndex = 37;
+            this.profileBindingLabel.Text = "Profile binding: (not selected)";
+            this.toolTip.SetToolTip(this.profileBindingLabel, "Shows which profile is bound to the selected Outlook and Google account.");
+            // 
             // lastSyncLabel
             // 
             this.lastSyncLabel.AutoEllipsis = true;
@@ -1034,11 +1078,11 @@ namespace GoContactSyncMod
             // 
             this.syncConsole.BackColor = System.Drawing.SystemColors.Info;
             this.syncConsole.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.syncConsole.BorderStyle = System.Windows.Forms.BorderStyle.None;
             this.syncConsole.Location = new System.Drawing.Point(3, 29);
-            this.syncConsole.Multiline = true;
             this.syncConsole.Name = "syncConsole";
             this.syncConsole.ReadOnly = true;
-            this.syncConsole.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.syncConsole.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
             this.syncConsole.Size = new System.Drawing.Size(703, 535);
             this.syncConsole.TabIndex = 1;
             this.toolTip.SetToolTip(this.syncConsole, "This window shows information\r\n from the last sync.");
@@ -1308,7 +1352,7 @@ namespace GoContactSyncMod
         private System.Windows.Forms.GroupBox syncOptionsGroupBox;
         private System.Windows.Forms.Label lastSyncLabel;
         private System.Windows.Forms.GroupBox logGroupBox;
-        private System.Windows.Forms.TextBox syncConsole;
+        private System.Windows.Forms.RichTextBox syncConsole;
         private System.Windows.Forms.GroupBox googleAccountGroupBox;
         private System.Windows.Forms.ContextMenuStrip systemTrayMenu;
         private System.Windows.Forms.ToolStripMenuItem toolStripMenuItem1;
@@ -1358,6 +1402,9 @@ namespace GoContactSyncMod
         private System.Windows.Forms.CheckBox btMonthsPast;
         private System.Windows.Forms.CheckBox SyncPhotosCheckBox;
         private System.Windows.Forms.CheckBox IncludePastRemindersCheckBox;
+        private System.Windows.Forms.Label outlookStartModeLabel;
+        private System.Windows.Forms.ComboBox outlookStartModeComboBox;
+        private System.Windows.Forms.Label profileBindingLabel;
     }
 }
 

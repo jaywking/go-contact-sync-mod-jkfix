@@ -111,8 +111,15 @@ namespace GoContactSyncMod
         public const string RegistrySyncAppointmentsFolder = "SyncAppointmentsFolder";
         public const string RegistrySyncAppointmentsGoogleFolder = "SyncAppointmentsGoogleFolder";
         public const string RegistrySyncProfile = "SyncProfile";
+        public const string RegistryOutlookStartMode = "OutlookStartMode";
         private const int WaitingMinutesBeforeSync = 5;
         private readonly ProxySettingsForm _proxy = new ProxySettingsForm();
+        private const string OutlookStartModePrompt = "Prompt";
+        private const string OutlookStartModeAuto = "AutoStart";
+        private const string OutlookStartModeSkip = "SkipCheck";
+        private const string OutlookStartModePromptDisplay = "Prompt";
+        private const string OutlookStartModeAutoDisplay = "Auto-start Outlook";
+        private const string OutlookStartModeSkipDisplay = "Skip check";
 
         private string syncContactsFolder = "";
         private string syncAppointmentsFolder = "";
@@ -214,16 +221,16 @@ namespace GoContactSyncMod
                 return true;
             }
 
-            var mode = Environment.GetEnvironmentVariable("GCSM_OUTLOOK_START_MODE");
-            if (!string.IsNullOrWhiteSpace(mode) && mode.Equals("skip", StringComparison.InvariantCultureIgnoreCase))
+            var mode = GetOutlookStartMode();
+            if (mode == OutlookStartModeSkip)
             {
-                Log.Warning("Outlook is not running and pre-check was skipped because GCSM_OUTLOOK_START_MODE=skip.");
+                Log.Warning("Outlook is not running and pre-check is skipped because profile setting is 'Skip check'.");
                 return true;
             }
 
-            if (!string.IsNullOrWhiteSpace(mode) && mode.Equals("auto", StringComparison.InvariantCultureIgnoreCase))
+            if (mode == OutlookStartModeAuto)
             {
-                Log.Information("Outlook is not running. Starting Outlook automatically because GCSM_OUTLOOK_START_MODE=auto.");
+                Log.Information("Outlook is not running. Starting Outlook automatically because profile setting is 'Auto-start Outlook'.");
                 if (TryStartOutlookAndWait())
                 {
                     return true;
@@ -247,6 +254,100 @@ namespace GoContactSyncMod
 
             Log.Information("Sync canceled because Outlook was not running.");
             return false;
+        }
+
+        private string GetOutlookStartMode()
+        {
+            if (outlookStartModeComboBox != null && outlookStartModeComboBox.SelectedItem != null)
+            {
+                var selectedDisplayValue = outlookStartModeComboBox.SelectedItem.ToString();
+                if (selectedDisplayValue == OutlookStartModeAutoDisplay)
+                {
+                    return OutlookStartModeAuto;
+                }
+
+                if (selectedDisplayValue == OutlookStartModeSkipDisplay)
+                {
+                    return OutlookStartModeSkip;
+                }
+
+                return OutlookStartModePrompt;
+            }
+
+            var envMode = Environment.GetEnvironmentVariable("GCSM_OUTLOOK_START_MODE");
+            if (!string.IsNullOrWhiteSpace(envMode))
+            {
+                if (envMode.Equals("auto", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return OutlookStartModeAuto;
+                }
+
+                if (envMode.Equals("skip", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    return OutlookStartModeSkip;
+                }
+            }
+
+            return OutlookStartModePrompt;
+        }
+
+        private void SetOutlookStartModeSelection(string mode)
+        {
+            if (outlookStartModeComboBox == null)
+            {
+                return;
+            }
+
+            var normalizedMode = OutlookStartModePrompt;
+            if (!string.IsNullOrWhiteSpace(mode))
+            {
+                if (mode.Equals(OutlookStartModeAuto, StringComparison.InvariantCultureIgnoreCase) ||
+                    mode.Equals("auto", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    normalizedMode = OutlookStartModeAuto;
+                }
+                else if (mode.Equals(OutlookStartModeSkip, StringComparison.InvariantCultureIgnoreCase) ||
+                    mode.Equals("skip", StringComparison.InvariantCultureIgnoreCase))
+                {
+                    normalizedMode = OutlookStartModeSkip;
+                }
+            }
+
+            var targetDisplayValue = OutlookStartModePromptDisplay;
+            if (normalizedMode == OutlookStartModeAuto)
+            {
+                targetDisplayValue = OutlookStartModeAutoDisplay;
+            }
+            else if (normalizedMode == OutlookStartModeSkip)
+            {
+                targetDisplayValue = OutlookStartModeSkipDisplay;
+            }
+
+            outlookStartModeComboBox.SelectedItem = targetDisplayValue;
+        }
+
+        private void UpdateProfileBindingLabel()
+        {
+            if (profileBindingLabel == null)
+            {
+                return;
+            }
+
+            var profileName = string.IsNullOrWhiteSpace(cmbSyncProfile.Text) ? "(none)" : cmbSyncProfile.Text;
+            var outlookFolderName = "(none)";
+            if (contactFoldersComboBox?.SelectedItem is OutlookFolder selectedOutlookFolder &&
+                !string.IsNullOrWhiteSpace(selectedOutlookFolder.DisplayName))
+            {
+                outlookFolderName = selectedOutlookFolder.DisplayName;
+            }
+
+            var googleAccount = string.IsNullOrWhiteSpace(UserName.Text) ? "(none)" : UserName.Text.Trim();
+            profileBindingLabel.Text = $"Profile binding: {profileName} | Outlook: {outlookFolderName} | Google: {googleAccount}";
+        }
+
+        private void OutlookStartModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            PersistCurrentProfileSettings();
         }
 
         private readonly Icon IconError = Properties.Resources.sync_error;
@@ -294,6 +395,7 @@ namespace GoContactSyncMod
             cmbSyncProfile.SelectedIndexChanged -= new EventHandler(CmbSyncProfile_SelectedIndexChanged);
             ProfileRegistry = FillSyncProfileItems() ? cmbSyncProfile.Text : null;
             LoadSettings(ProfileRegistry);
+            UpdateProfileBindingLabel();
 
             //enable the listener
             cmbSyncProfile.SelectedIndexChanged += new EventHandler(CmbSyncProfile_SelectedIndexChanged);
@@ -675,7 +777,9 @@ namespace GoContactSyncMod
             SetSyncOption(0);
             autoSyncCheckBox.Checked = runAtStartupCheckBox.Checked = reportSyncResultCheckBox.Checked = false;
             autoSyncInterval.Value = 2;
+            SetOutlookStartModeSelection(OutlookStartModePrompt);
             _proxy.ClearSettings();
+            UpdateProfileBindingLabel();
         }
         // Fill lists of sync profiles
         private bool FillSyncProfileItems()
@@ -738,6 +842,10 @@ namespace GoContactSyncMod
             btSyncContacts.CheckedChanged -= new EventHandler(BtSyncContacts_CheckedChanged);
             btSyncAppointments.CheckedChanged -= new EventHandler(BtSyncAppointments_CheckedChanged);
             SyncRemindersCheckBox.CheckedChanged -= new EventHandler(SyncReminders_CheckedChanged);
+            if (outlookStartModeComboBox != null)
+            {
+                outlookStartModeComboBox.SelectedIndexChanged -= new EventHandler(OutlookStartModeComboBox_SelectedIndexChanged);
+            }
 
             ReadRegistryIntoCheckBox(autoSyncCheckBox, regKeyAppRoot.GetValue(RegistryAutoSync));
             ReadRegistryIntoNumber(autoSyncInterval, regKeyAppRoot.GetValue(RegistryAutoSyncInterval));
@@ -758,6 +866,12 @@ namespace GoContactSyncMod
 
             ReadRegistryIntoCheckBox(btSyncContacts, regKeyAppRoot.GetValue(RegistrySyncContacts));
             ReadRegistryIntoCheckBox(chkUseFileAs, regKeyAppRoot.GetValue(RegistryUseFileAs));
+            var outlookStartModeValue = regKeyAppRoot.GetValue(RegistryOutlookStartMode) as string;
+            if (string.IsNullOrWhiteSpace(outlookStartModeValue))
+            {
+                outlookStartModeValue = Environment.GetEnvironmentVariable("GCSM_OUTLOOK_START_MODE");
+            }
+            SetOutlookStartModeSelection(outlookStartModeValue);
 
             ReadRegistryIntoCheckBox(btSyncContactsForceRTF, regKeyAppRoot.GetValue(RegistrySyncContactsForceRTF));
             ReadRegistryIntoCheckBox(SyncPhotosCheckBox, regKeyAppRoot.GetValue(RegistrySyncPhotos));
@@ -804,6 +918,11 @@ namespace GoContactSyncMod
             btSyncContacts.CheckedChanged += new EventHandler(BtSyncContacts_CheckedChanged);
             btSyncAppointments.CheckedChanged += new EventHandler(BtSyncAppointments_CheckedChanged);
             SyncRemindersCheckBox.CheckedChanged += new EventHandler(SyncReminders_CheckedChanged);
+            if (outlookStartModeComboBox != null)
+            {
+                outlookStartModeComboBox.SelectedIndexChanged += new EventHandler(OutlookStartModeComboBox_SelectedIndexChanged);
+            }
+            UpdateProfileBindingLabel();
         }
 
         private static bool ReadRegistryIntoCheckBox(CheckBox checkbox, object registryEntry)
@@ -893,6 +1012,7 @@ namespace GoContactSyncMod
             }
 
             Log.Debug("Loaded settings folders...");
+            UpdateProfileBindingLabel();
         }
 
         private void SaveSettings()
@@ -933,6 +1053,7 @@ namespace GoContactSyncMod
                 regKeyAppRoot.SetValue(RegistrySyncContactsForceRTF, btSyncContactsForceRTF.Checked);
                 regKeyAppRoot.SetValue(RegistrySyncPhotos, SyncPhotosCheckBox.Checked);
                 regKeyAppRoot.SetValue(RegistryUseFileAs, chkUseFileAs.Checked);
+                regKeyAppRoot.SetValue(RegistryOutlookStartMode, GetOutlookStartMode());
                 regKeyAppRoot.SetValue(RegistryLastSync, lastSync.Ticks);
 
                 // Persist selected folders per profile immediately so profile-to-folder mapping survives restarts
@@ -1384,7 +1505,8 @@ namespace GoContactSyncMod
             }
             else
             {
-                syncConsole.Text = text;
+                syncConsole.Clear();
+                AppendFormattedSyncConsoleText(text, false);
                 //Scroll to bottom to always see the last log entry
                 syncConsole.SelectionStart = syncConsole.TextLength;
                 syncConsole.ScrollToCaret();
@@ -1400,11 +1522,38 @@ namespace GoContactSyncMod
             }
             else
             {
-                syncConsole.Text += text;
+                var isSyncCompleteLine = !string.IsNullOrEmpty(text) &&
+                    text.IndexOf("Sync complete.", StringComparison.OrdinalIgnoreCase) >= 0;
+                AppendFormattedSyncConsoleText(text, isSyncCompleteLine);
                 //Scroll to bottom to always see the last log entry
                 syncConsole.SelectionStart = syncConsole.TextLength;
                 syncConsole.ScrollToCaret();
             }
+        }
+
+        private void AppendFormattedSyncConsoleText(string text, bool bold)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            syncConsole.SelectionStart = syncConsole.TextLength;
+            syncConsole.SelectionLength = 0;
+            if (bold)
+            {
+                using (var boldFont = new Font(syncConsole.Font, FontStyle.Bold))
+                {
+                    syncConsole.SelectionFont = boldFont;
+                    syncConsole.AppendText(text);
+                }
+            }
+            else
+            {
+                syncConsole.SelectionFont = syncConsole.Font;
+                syncConsole.AppendText(text);
+            }
+            syncConsole.SelectionFont = syncConsole.Font;
         }
 
         public void TimerSwitch(bool value)
@@ -2046,11 +2195,13 @@ namespace GoContactSyncMod
             }
 
             ValidateSyncButton();
+            UpdateProfileBindingLabel();
         }
 
         private void ContacFoldersComboBox_SelectedIndexChanged(object sender, EventArgs e)
         {
             folderComboBox_SelectedIndexChanged(sender, ref syncContactsFolder, "Outlook Contacts");
+            UpdateProfileBindingLabel();
         }
 
         private void AppointmentFoldersComboBox_SelectedIndexChanged(object sender, EventArgs e)
@@ -2075,6 +2226,7 @@ namespace GoContactSyncMod
 
             ValidateSyncButton();
             PersistCurrentProfileSettings();
+            UpdateProfileBindingLabel();
         }
 
         private void folderComboBox_SelectedIndexChanged(object sender, ref string folder, string content)
@@ -2094,6 +2246,7 @@ namespace GoContactSyncMod
 
             ValidateSyncButton();
             PersistCurrentProfileSettings();
+            UpdateProfileBindingLabel();
         }
 
         private void PersistCurrentProfileSettings()
@@ -2424,6 +2577,7 @@ namespace GoContactSyncMod
                     LoadAppointmentGoogleFoldersComboBox();
                 }
             }
+            UpdateProfileBindingLabel();
         }
 
         private void btMonthsPast_CheckedChanged(object sender, EventArgs e)

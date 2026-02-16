@@ -4,8 +4,8 @@ Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Ou
 
 ## Version
 
-- App informational version: `4.3.0-jkfix.2`
-- Release tag: `v4.3.0-jkfix.2`
+- App informational version: `4.3.0-jkfix.3`
+- Release tag: `v4.3.0-jkfix.3`
 
 ## What This Fork Fixes
 
@@ -18,6 +18,13 @@ Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Ou
 - Adds private build/install/package automation scripts.
 
 ## Changelog
+
+### 4.3.0-jkfix.3
+
+- Added per-profile `Outlook start` setting in UI (`Prompt` / `Auto-start Outlook` / `Skip check`) with profile persistence.
+- Added profile binding status line in UI to show active profile + selected Outlook contacts folder + Google account.
+- Cleaned layout using designer-based control placement for the new settings.
+- Improved sync log readability by bolding `Sync complete...` summary lines in the log pane.
 
 ### 4.3.0-jkfix.2
 
@@ -84,7 +91,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package-private.ps1
 
 Output:
 
-- `dist\GOContactSyncMod-4.3.0-jkfix.2.zip`
+- `dist\GOContactSyncMod-4.3.0-jkfix.3.zip`
 
 ## Known Notes
 
