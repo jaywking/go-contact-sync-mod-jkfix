@@ -101,6 +101,27 @@ namespace GoContactSyncMod
             return assemblyVersionNumber;
         }
 
+        public static string GetGCSMDisplayVersion()
+        {
+            try
+            {
+                var assembly = Assembly.GetExecutingAssembly();
+                var info = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+                if (info != null && !string.IsNullOrWhiteSpace(info.InformationalVersion))
+                {
+                    return info.InformationalVersion;
+                }
+
+                var fvi = FileVersionInfo.GetVersionInfo(assembly.Location);
+                return fvi.FileVersion;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Exception");
+                return GetGCSMVersion()?.ToString() ?? "unknown";
+            }
+        }
+
         public static async Task<bool> IsNewVersionAvailable(CancellationToken cancellationToken)
         {
             Log.Information("Reading version number from sf.net...");
@@ -120,6 +141,7 @@ namespace GoContactSyncMod
                 {
                     var webVersionNumber = new Version(strVersion);
                     var localVersion = GetGCSMVersion();
+                    var localDisplayVersion = GetGCSMDisplayVersion();
                     string addOn = $" (Installed: {((localVersion==null)?"null":localVersion.ToString())} / Available: {strVersion})";                    
                     //compare both versions
                     var result = webVersionNumber.CompareTo(localVersion);
@@ -135,7 +157,7 @@ namespace GoContactSyncMod
                     }
                     else
                     {   //older or same version found
-                        Log.Information($"You are using the latest version of GCSM ({strVersion}).");
+                        Log.Information($"You are using the latest version of GCSM ({strVersion}). Installed build: {localDisplayVersion}.");
                         return false;
                     }
                 }
