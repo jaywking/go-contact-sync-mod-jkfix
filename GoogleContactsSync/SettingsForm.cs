@@ -167,6 +167,88 @@ namespace GoContactSyncMod
                 : MessageBox.Show(this, text, Application.ProductName, MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
         }
 
+        private bool IsOutlookRunning()
+        {
+            try
+            {
+                return Process.GetProcessesByName("OUTLOOK").Length > 0;
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Could not check Outlook process state.");
+                return false;
+            }
+        }
+
+        private bool TryStartOutlookAndWait(int timeoutSeconds = 45)
+        {
+            if (!IsOutlookRunning())
+            {
+                try
+                {
+                    Process.Start("outlook.exe");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning($"Could not start Outlook automatically: {ex.Message}");
+                    return false;
+                }
+            }
+
+            var until = DateTime.Now.AddSeconds(timeoutSeconds);
+            while (DateTime.Now < until)
+            {
+                if (IsOutlookRunning())
+                {
+                    return true;
+                }
+                Thread.Sleep(500);
+            }
+            return IsOutlookRunning();
+        }
+
+        private bool EnsureOutlookReadyForSync()
+        {
+            if (IsOutlookRunning())
+            {
+                return true;
+            }
+
+            var mode = Environment.GetEnvironmentVariable("GCSM_OUTLOOK_START_MODE");
+            if (!string.IsNullOrWhiteSpace(mode) && mode.Equals("skip", StringComparison.InvariantCultureIgnoreCase))
+            {
+                Log.Warning("Outlook is not running and pre-check was skipped because GCSM_OUTLOOK_START_MODE=skip.");
+                return true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(mode) && mode.Equals("auto", StringComparison.InvariantCultureIgnoreCase))
+            {
+                Log.Information("Outlook is not running. Starting Outlook automatically because GCSM_OUTLOOK_START_MODE=auto.");
+                if (TryStartOutlookAndWait())
+                {
+                    return true;
+                }
+
+                ShowBalloonToolTip("Error", "Could not start Outlook automatically. Please start Outlook and retry sync.", ToolTipIcon.Error, 5000, true);
+                return false;
+            }
+
+            var result = ShowDialog("Outlook is not running. Start Outlook now?\n\nYes: Start Outlook automatically and continue sync.\nNo: Cancel this sync so you can start Outlook manually.\nCancel: Cancel this sync.");
+            if (result == DialogResult.Yes)
+            {
+                if (TryStartOutlookAndWait())
+                {
+                    return true;
+                }
+
+                ShowBalloonToolTip("Error", "Could not start Outlook automatically. Please start Outlook and retry sync.", ToolTipIcon.Error, 5000, true);
+                return false;
+            }
+
+            Log.Information("Sync canceled because Outlook was not running.");
+            return false;
+        }
+
         private readonly Icon IconError = Properties.Resources.sync_error;
         private readonly Icon Icon0 = Properties.Resources.sync;
         private readonly Icon Icon30 = Properties.Resources.sync_30;
@@ -853,7 +935,13 @@ namespace GoContactSyncMod
                 regKeyAppRoot.SetValue(RegistryUseFileAs, chkUseFileAs.Checked);
                 regKeyAppRoot.SetValue(RegistryLastSync, lastSync.Ticks);
 
-                _proxy.SaveSettings(cmbSyncProfile.Text);
+                // Persist selected folders per profile immediately so profile-to-folder mapping survives restarts
+                // even if no sync has run yet.
+                regKeyAppRoot.SetValue(RegistrySyncContactsFolder, syncContactsFolder ?? string.Empty);
+                regKeyAppRoot.SetValue(RegistrySyncAppointmentsFolder, syncAppointmentsFolder ?? string.Empty);
+                regKeyAppRoot.SetValue(RegistrySyncAppointmentsGoogleFolder, syncAppointmentsGoogleFolder ?? string.Empty);
+
+                _proxy.SaveSettings(profile);
             }
         }
 
@@ -1088,6 +1176,13 @@ namespace GoContactSyncMod
                         Log.Error(messageText);
                         ShowForm();
                         ShowBalloonToolTip("Error", messageText, ToolTipIcon.Error, 5000, true);
+                        return;
+                    }
+
+                    if (!EnsureOutlookReadyForSync())
+                    {
+                        SetLastSyncText("Sync canceled.");
+                        notifyIcon.Text = Application.ProductName + "\nSync canceled";
                         return;
                     }
 
@@ -1548,6 +1643,14 @@ namespace GoContactSyncMod
             Synchronizer.SyncAppointmentsGoogleFolder = syncAppointmentsGoogleFolder;
             Synchronizer.SyncProfile = SyncProfile;
 
+            if (!EnsureOutlookReadyForSync())
+            {
+                SetLastSyncText("Reset Matches canceled.");
+                notifyIcon.Text = Application.ProductName + "\nReset Matches canceled";
+                Log.Information("Reset Matches canceled because Outlook was not running.");
+                return false;
+            }
+
             sync.LoginToGoogle(UserName.Text);
             sync.LoginToOutlook();
 
@@ -1970,7 +2073,8 @@ namespace GoContactSyncMod
                 toolTip.SetToolTip(comboBox, message);
             }
 
-            ValidateSyncButton();            
+            ValidateSyncButton();
+            PersistCurrentProfileSettings();
         }
 
         private void folderComboBox_SelectedIndexChanged(object sender, ref string folder, string content)
@@ -1989,6 +2093,29 @@ namespace GoContactSyncMod
             }
 
             ValidateSyncButton();
+            PersistCurrentProfileSettings();
+        }
+
+        private void PersistCurrentProfileSettings()
+        {
+            var validProfileSelected =
+                cmbSyncProfile.SelectedIndex > 0 &&
+                cmbSyncProfile.SelectedIndex < cmbSyncProfile.Items.Count - 1 &&
+                !string.IsNullOrWhiteSpace(cmbSyncProfile.Text);
+
+            if (!validProfileSelected)
+            {
+                return;
+            }
+
+            try
+            {
+                SaveSettings(cmbSyncProfile.Text);
+            }
+            catch (Exception ex)
+            {
+                Log.Debug(ex, "Could not persist profile settings.");
+            }
         }
 
         private void BtSyncDelete_CheckedChanged(object sender, EventArgs e)

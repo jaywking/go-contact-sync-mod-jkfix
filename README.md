@@ -4,8 +4,8 @@ Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Ou
 
 ## Version
 
-- App informational version: `4.3.0-jkfix.1`
-- Release tag: `v4.3.0-jkfix.1`
+- App informational version: `4.3.0-jkfix.2`
+- Release tag: `v4.3.0-jkfix.2`
 
 ## What This Fork Fixes
 
@@ -13,6 +13,8 @@ Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Ou
 - Ensures deletion prompts are suppressed when **Sync Deletion** is disabled.
 - Persists and respects contact match IDs between runs.
 - Improves Outlook folder loading behavior and startup usability.
+- Adds Outlook pre-sync readiness checks (prompt or auto-start behavior).
+- Fixes per-profile folder persistence so each sync profile reliably keeps its own selected source/target folders.
 - Adds private build/install/package automation scripts.
 
 ## Repository Layout
@@ -65,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package-private.ps1
 
 Output:
 
-- `dist\GOContactSyncMod-4.3.0-jkfix.1.zip`
+- `dist\GOContactSyncMod-4.3.0-jkfix.2.zip`
 
 ## Known Notes
 
@@ -75,4 +77,3 @@ Output:
 ## Upstream
 
 - Original project source: SourceForge SVN/Git mirror for GO Contact Sync Mod.
-
