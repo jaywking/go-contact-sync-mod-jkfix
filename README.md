@@ -17,6 +17,23 @@ Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Ou
 - Fixes per-profile folder persistence so each sync profile reliably keeps its own selected source/target folders.
 - Adds private build/install/package automation scripts.
 
+## Changelog
+
+### 4.3.0-jkfix.2
+
+- Added Outlook readiness pre-check before Sync/Reset:
+  - default prompt mode when Outlook is not running
+  - optional auto-start mode via environment variable
+- Fixed per-profile folder persistence so each profile keeps its own selected Outlook/Google folders after restart.
+- Added/updated installer and release packaging flow for MSI + ZIP publishing.
+
+### 4.3.0-jkfix.1
+
+- Fixed repeated no-change Outlook -> Google re-updates on immediate reruns.
+- Suppressed deletion prompts when Sync Deletion is off.
+- Improved match ID persistence/stability across sync runs.
+- Added startup/folder scan usability improvements and private build tooling.
+
 ## Repository Layout
 
 - `GoogleContactsSync/` - main application source
