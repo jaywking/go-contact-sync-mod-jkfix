@@ -115,6 +115,7 @@ SHA256 checksums for release assets:
 - `scripts/package-private.ps1` - creates release ZIP
 - `patches/contact-resync-fix-r1587.patch` - patch export
 - `TEST_PLAN.md` - regression checks
+- `VERIFICATION.md` - release verification checklist and proof template
 - `NEXT_STEPS.md` - operational notes
 
 ## Build
