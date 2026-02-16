@@ -2,10 +2,37 @@
 
 Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Outlook -> Google workflows.
 
-## Version
+## Why This Fork Exists
+
+This fork exists to address recurring reliability issues seen by users on the original SourceForge-distributed build, especially for Outlook -> Google contacts-only sync.
+
+Most common symptoms fixed here:
+
+- repeated no-change contact updates on every sync run
+- deletion prompts appearing even when **Sync Deletion** is OFF
+- profile/folder selection not persisting reliably
+- unclear startup behavior when Outlook is not running
+
+## Keywords (Findability)
+
+If you found this repo by searching, these are the issue phrases this fork targets:
+
+- GO Contact Sync Mod repeated updates
+- GO Contact Sync Mod sync deletion off still prompts
+- GO Contact Sync Mod Loading Outlook folders stuck
+- GO Contact Sync Mod Outlook to Google only re-sync bug
+- GOContactSync duplicate warning cannot be synchronized
+
+## Current Stable Release
 
 - App informational version: `4.3.0-jkfix.3`
 - Release tag: `v4.3.0-jkfix.3`
+- Release page: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/tag/v4.3.0-jkfix.3`
+
+Direct download links:
+
+- MSI installer: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.3/SetupGCSM-4.3.0-jkfix.3.msi`
+- ZIP (portable): `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.3/GOContactSyncMod-4.3.0-jkfix.3.zip`
 
 ## What This Fork Fixes
 
@@ -16,6 +43,45 @@ Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Ou
 - Adds Outlook pre-sync readiness checks (prompt or auto-start behavior).
 - Fixes per-profile folder persistence so each sync profile reliably keeps its own selected source/target folders.
 - Adds private build/install/package automation scripts.
+
+## Quick Install (Pinned to jkfix.3)
+
+1. Download MSI from the release page.
+2. Run `SetupGCSM-4.3.0-jkfix.3.msi`.
+3. Launch app and verify title shows `4.3.0-jkfix.3`.
+4. Select correct sync profile and Outlook source folder.
+
+Portable ZIP option:
+
+1. Download `GOContactSyncMod-4.3.0-jkfix.3.zip`.
+2. Extract anywhere.
+3. Run `GOContactSync.exe`.
+
+## Trust Signals / Validation
+
+Before (problem state):
+
+- Log repeatedly showed: `Updated contact from Outlook to Google: ...` for same unchanged contacts on every run.
+
+After (jkfix expected behavior):
+
+- First sync after profile/folder reset may update affected contacts.
+- Immediate re-sync without changes should show:
+  - `Sync complete. Synced: 0 ...`
+  - unchanged contacts skipped as expected.
+- Real field changes (for example phone edit in Outlook) should update only changed contact(s).
+
+Known limitations:
+
+- Contacts that match multiple Google contacts are intentionally skipped until duplicates are resolved.
+- Upstream version checker may still reference upstream numeric line (`4.3.0`) while app title/log includes `jkfix` build.
+
+SHA256 checksums for release assets:
+
+- `GOContactSyncMod-4.3.0-jkfix.3.zip`  
+  `10EC0C45756C3BAEAA97AEF85FB479695929EAB0CF0F1C6B32DA4EB8B0CEA8C0`
+- `SetupGCSM-4.3.0-jkfix.3.msi`  
+  `9180DF387086A533768F8D9A45403EE249203809656D425D21FB582E5A1567B6`
 
 ## Changelog
 
