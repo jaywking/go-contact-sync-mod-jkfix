@@ -17,6 +17,7 @@ namespace GoContactSyncMod
         {
             public string GoogleContactId;
             public DateTime? LastSync;
+            public string LastEtag;
         }
         #endregion
 
@@ -104,6 +105,7 @@ namespace GoContactSyncMod
             TitleFirstLastAndSuffix = GetTitleFirstLastAndSuffix(oc);
             UserProperties.GoogleContactId = ContactPropertiesUtils.GetOutlookGoogleId(oc);
             UserProperties.LastSync = ContactPropertiesUtils.GetOutlookLastSync(oc);
+            UserProperties.LastEtag = ContactPropertiesUtils.GetOutlookLastEtag(oc);
         }
 
         internal ContactItem GetOriginalItemFromOutlook()

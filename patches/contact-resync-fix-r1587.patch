@@ -1,0 +1,300 @@
+diff --git a/GoogleContactsSync/ContactsMatcher.cs b/GoogleContactsSync/ContactsMatcher.cs
+index 1864038..86420f2 100644
+--- a/GoogleContactsSync/ContactsMatcher.cs
++++ b/GoogleContactsSync/ContactsMatcher.cs
+@@ -382,10 +382,16 @@ namespace GoContactSyncMod
+                     {
+                         Log.Warning($"Skipped GoogleContact because no unique property found (Email1 or mobile or name or company) and SyncOption {sync.SyncOption}: {ContactMatch.GetSummary(entry)}");
+                     }
+-                    else
+-                    {
+-                        //ToDo: For now I use the ResolveDelete function, because it is almost the same, maybe we introduce a separate function for this ans also include DeleteGoogleAlways checkbox
+-                        using (var r = new ConflictResolver())
++                    else if (!sync.SyncDelete)
++                    {
++                        sync.SkippedCount++;
++                        sync.SkippedCountNotMatches++;
++                        Log.Warning($"Skipped GoogleContact because no unique property found and SyncDeletion is switched off: {ContactMatch.GetSummary(entry)}");
++                    }
++                    else
++                    {
++                        //ToDo: For now I use the ResolveDelete function, because it is almost the same, maybe we introduce a separate function for this ans also include DeleteGoogleAlways checkbox
++                        using (var r = new ConflictResolver())
+                         {
+                             var res = r.ResolveDelete(entry);
+ 
+@@ -493,42 +499,44 @@ namespace GoContactSyncMod
+             }
+         }
+ 
+-        private static void SyncContactNoGoogle(Outlook.ContactItem outlookContactItem, ContactMatch match, Synchronizer sync)
+-        {
+-            //no google contact                               
+-            var gid = match.OutlookContact.UserProperties.GoogleContactId;
+-            var askDelete = false;
+-
+-            if (sync.SyncOption == SyncOption.GoogleToOutlookOnly && string.IsNullOrEmpty(gid))
+-            {
+-                askDelete = true;
+-                //sync.SkippedCount++;
+-                Log.Debug($"Outlook Contact not added to Google, because of SyncOption {sync.SyncOption}: {match.OutlookContact.FileAs}");
+-                //return;
+-            }
+-            else if (!string.IsNullOrEmpty(gid))
+-            {
+-                //Redundant check if exist, but in case an error occurred in MatchContacts
+-                askDelete = true;
+-                var matchingGoogleContact = sync.GetGoogleContact(gid);
+-                if (matchingGoogleContact == null)
+-                {
+-                    if (!sync.SyncDelete)
+-                    {
+-                        return;//ToDo: Check: kept on OutlookSide? and skip logged for not deleting?
+-                    }
+-                    else if (!sync.PromptDelete)
+-                    {
+-                        //sync.DeleteOutlookResolution = DeleteResolution.DeleteOutlookAlways;
+-                        return;//==> Delete this outlookContact instead if previous match existed but no match exists anymore
+-                    }
+-                    else if (sync.SyncOption == SyncOption.OutlookToGoogleOnly)
+-                    {
+-                        //sync.DeleteGoogleResolution = DeleteResolution.KeepOutlook;
+-                        askDelete = false;
+-                    }
+-                }
+-            }
++        private static void SyncContactNoGoogle(Outlook.ContactItem outlookContactItem, ContactMatch match, Synchronizer sync)
++        {
++            //no google contact                               
++            var gid = match.OutlookContact.UserProperties.GoogleContactId;
++            var askDelete = false;
++
++            if (sync.SyncOption == SyncOption.GoogleToOutlookOnly && string.IsNullOrEmpty(gid))
++            {
++                Log.Debug($"Outlook Contact not added to Google, because of SyncOption {sync.SyncOption}: {match.OutlookContact.FileAs}");
++                return;
++            }
++            else if (!string.IsNullOrEmpty(gid))
++            {
++                var matchingGoogleContact = sync.GetGoogleContact(gid);
++                if (matchingGoogleContact != null)
++                {
++                    // Link exists and peer still exists => no delete decision and no duplicate create.
++                    return;
++                }
++
++                // Redundant check if exist, but in case an error occurred in MatchContacts.
++                askDelete = true;
++                if (!sync.SyncDelete)
++                {
++                    Log.Debug($"Skipped deletion prompt for Outlook contact because SyncDeletion is switched off: {match.OutlookContact.FileAs}");
++                    return;
++                }
++                else if (!sync.PromptDelete)
++                {
++                    //sync.DeleteOutlookResolution = DeleteResolution.DeleteOutlookAlways;
++                    return;//==> Delete this outlookContact instead if previous match existed but no match exists anymore
++                }
++                else if (sync.SyncOption == SyncOption.OutlookToGoogleOnly)
++                {
++                    //sync.DeleteGoogleResolution = DeleteResolution.KeepOutlook;
++                    askDelete = false;
++                }
++            }
+ 
+ 
+             if (askDelete)
+@@ -572,24 +580,23 @@ namespace GoContactSyncMod
+         private static void SyncContactNoOutlook(ContactMatch match, Synchronizer sync)
+         {
+             // no outlook contact
+-            var outlookId = ContactPropertiesUtils.GetGoogleOutlookContactId(match.GoogleContact);
+-            var askDelete = false;
+-
+-            if (sync.SyncOption == SyncOption.OutlookToGoogleOnly && string.IsNullOrEmpty(outlookId))
+-            {
+-                askDelete = true;
+-                //sync.SkippedCount++;
+-                Log.Debug($"Google Person not added to Outlook, because of SyncOption {sync.SyncOption}: {ContactPropertiesUtils.GetGoogleUniqueIdentifierName(match.GoogleContact)}");
+-                //return;
+-            }
+-            else if (!string.IsNullOrEmpty(outlookId))
+-            {
+-                askDelete = true;
+-                if (!sync.SyncDelete)
+-                {
+-                    return; //ToDo: Check: kept on GoogleSide? and skip logged for not deleting?
+-                }
+-                else if (!sync.PromptDelete)
++            var outlookId = ContactPropertiesUtils.GetGoogleOutlookContactId(match.GoogleContact);
++            var askDelete = false;
++
++            if (sync.SyncOption == SyncOption.OutlookToGoogleOnly && string.IsNullOrEmpty(outlookId))
++            {
++                Log.Debug($"Google Person not added to Outlook, because of SyncOption {sync.SyncOption}: {ContactPropertiesUtils.GetGoogleUniqueIdentifierName(match.GoogleContact)}");
++                return;
++            }
++            else if (!string.IsNullOrEmpty(outlookId))
++            {
++                askDelete = true;
++                if (!sync.SyncDelete)
++                {
++                    Log.Debug($"Skipped deletion prompt for Google contact because SyncDeletion is switched off: {ContactPropertiesUtils.GetGoogleUniqueIdentifierName(match.GoogleContact)}");
++                    return; //ToDo: Check: kept on GoogleSide? and skip logged for not deleting?
++                }
++                else if (!sync.PromptDelete)
+                 {
+                     //sync.DeleteGoogleResolution = DeleteResolution.DeleteGoogleAlways;
+                     return; //==> Delete this googleContact instead if previous match existed but no match exists anymore    
+@@ -652,11 +659,14 @@ namespace GoContactSyncMod
+             {
+                 //contact pair was syncronysed before.
+                 //determine if Outlook and Google contact were updated since last sync                
+-                var lastUpdatedOutlook = ContactPropertiesUtils.GetOutlookLastUpdated(match.OutlookContact);
+-                var lastUpdatedGoogle = ContactPropertiesUtils.GetGoogleLastUpdated(match.GoogleContact);
+-
+-                var OutlookUpdatedSinceLastSync = Utilities.UpdatedSinceLastSync(lastUpdatedOutlook, lastSynced.Value);
+-                var GoogleUpdatedSinceLastSync = Utilities.UpdatedSinceLastSync(lastUpdatedGoogle, lastSynced.Value);
++                var lastUpdatedOutlook = ContactPropertiesUtils.GetOutlookLastUpdated(match.OutlookContact);
++                var lastUpdatedGoogle = ContactPropertiesUtils.GetGoogleLastUpdated(match.GoogleContact);
++
++                var OutlookUpdatedSinceLastSync = Utilities.UpdatedSinceLastSync(lastUpdatedOutlook, lastSynced.Value);
++                var GoogleUpdatedSinceLastSync = Utilities.UpdatedSinceLastSync(lastUpdatedGoogle, lastSynced.Value);
++                var googleEtagDiffersFromLastSync = !string.IsNullOrEmpty(match.GoogleContact?.ETag)
++                    && !string.IsNullOrEmpty(match.OutlookContact.UserProperties.LastEtag)
++                    && !string.Equals(match.GoogleContact.ETag, match.OutlookContact.UserProperties.LastEtag, StringComparison.Ordinal);
+ 
+                 //ToDo: Too many updates, check if we can use eTag
+                 //if (!GoogleUpdatedSinceLastSync)
+@@ -725,15 +735,19 @@ namespace GoContactSyncMod
+                 //check if outlook contact was updated (with X second tolerance)
+                 if (sync.SyncOption != SyncOption.GoogleToOutlookOnly)
+                 {
+-                    //outlook contact was changed or changed Google contact will be overwritten
+-                    if (sync.SyncOption == SyncOption.OutlookToGoogleOnly && GoogleUpdatedSinceLastSync)
+-                    {
+-                        Log.Debug($"Google contact has been updated since last sync, but Outlook contact is overwriting Google because of SyncOption {sync.SyncOption}: {match.OutlookContact.FileAs}.");
+-                        sync.UpdateContact(oc, match.GoogleContact, match);
+-                        return;
+-                    }
+-                    else if (OutlookUpdatedSinceLastSync)
+-                    {
++                    //outlook contact was changed or changed Google contact will be overwritten
++                    if (sync.SyncOption == SyncOption.OutlookToGoogleOnly && GoogleUpdatedSinceLastSync)
++                    {
++                        if (googleEtagDiffersFromLastSync)
++                        {
++                            Log.Debug($"Google contact has been updated since last sync (etag changed), Outlook contact is overwriting Google because of SyncOption {sync.SyncOption}: {match.OutlookContact.FileAs}.");
++                            sync.UpdateContact(oc, match.GoogleContact, match);
++                            return;
++                        }
++                        Log.Debug($"Skipping Outlook-to-Google overwrite because only timestamp changed and etag is unchanged: {match.OutlookContact.FileAs}.");
++                    }
++                    else if (OutlookUpdatedSinceLastSync)
++                    {
+                         sync.UpdateContact(oc, match.GoogleContact, match);
+                         return;
+                     }
+@@ -1229,4 +1243,4 @@ namespace GoContactSyncMod
+             return summary;
+         }
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/GoogleContactsSync/OutlookContactInfo.cs b/GoogleContactsSync/OutlookContactInfo.cs
+index 26e8a78..a690ad4 100644
+--- a/GoogleContactsSync/OutlookContactInfo.cs
++++ b/GoogleContactsSync/OutlookContactInfo.cs
+@@ -13,11 +13,12 @@ namespace GoContactSyncMod
+     internal class OutlookContactInfo
+     {
+         #region Internal classes
+-        internal class UserPropertiesHolder
+-        {
+-            public string GoogleContactId;
+-            public DateTime? LastSync;
+-        }
++        internal class UserPropertiesHolder
++        {
++            public string GoogleContactId;
++            public DateTime? LastSync;
++            public string LastEtag;
++        }
+         #endregion
+ 
+         #region Properties
+@@ -100,11 +101,12 @@ namespace GoContactSyncMod
+                 LastModificationTime = DateTime.MinValue;
+             }
+ 
+-            Company = oc.CompanyName;
+-            TitleFirstLastAndSuffix = GetTitleFirstLastAndSuffix(oc);
+-            UserProperties.GoogleContactId = ContactPropertiesUtils.GetOutlookGoogleId(oc);
+-            UserProperties.LastSync = ContactPropertiesUtils.GetOutlookLastSync(oc);
+-        }
++            Company = oc.CompanyName;
++            TitleFirstLastAndSuffix = GetTitleFirstLastAndSuffix(oc);
++            UserProperties.GoogleContactId = ContactPropertiesUtils.GetOutlookGoogleId(oc);
++            UserProperties.LastSync = ContactPropertiesUtils.GetOutlookLastSync(oc);
++            UserProperties.LastEtag = ContactPropertiesUtils.GetOutlookLastEtag(oc);
++        }
+ 
+         internal ContactItem GetOriginalItemFromOutlook()
+         {
+diff --git a/GoogleContactsSync/Synchronizer.cs b/GoogleContactsSync/Synchronizer.cs
+index f4802e6..39292ee 100644
+--- a/GoogleContactsSync/Synchronizer.cs
++++ b/GoogleContactsSync/Synchronizer.cs
+@@ -2879,20 +2879,30 @@ namespace GoContactSyncMod
+             }
+         }
+ 
+-        public bool SaveContact(ContactMatch match)
+-        {
+-            if (match.GoogleContact != null && match.OutlookContact != null)
+-            {
+-                if (match.GoogleContactDirty)
+-                {
+-                    //google contact was modified. save.
+-                    if (SaveGoogleContact(match))
+-                    {
+-                        SyncedCount++;
+-                        Log.Information($"Updated contact from Outlook to Google: \"{match}\".");
+-                    }
+-                    else
+-                    {
++        public bool SaveContact(ContactMatch match)
++        {
++            if (match.GoogleContact != null && match.OutlookContact != null)
++            {
++                var missingOutlookGoogleId = string.IsNullOrEmpty(match.OutlookContact.UserProperties.GoogleContactId);
++                var missingGoogleOutlookId = string.IsNullOrEmpty(ContactPropertiesUtils.GetGoogleOutlookContactId(match.GoogleContact));
++
++                if (match.GoogleContactDirty || missingOutlookGoogleId || missingGoogleOutlookId)
++                {
++                    // Google contact was modified or link metadata must be persisted. Save once to keep stable matching IDs.
++                    if (SaveGoogleContact(match))
++                    {
++                        SyncedCount++;
++                        if (match.GoogleContactDirty)
++                        {
++                            Log.Information($"Updated contact from Outlook to Google: \"{match}\".");
++                        }
++                        else
++                        {
++                            Log.Information($"Persisted contact match IDs for: \"{match}\".");
++                        }
++                    }
++                    else
++                    {
+                         return false;
+                     }
+                 }
+@@ -4824,4 +4834,4 @@ namespace GoContactSyncMod
+         OutlookToGoogleOnly,
+         GoogleToOutlookOnly,
+     }
+-}
+\ No newline at end of file
++}

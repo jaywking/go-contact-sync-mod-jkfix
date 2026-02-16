@@ -282,6 +282,7 @@ namespace GoContactSyncMod
                         (appointmentGoogleFoldersComboBox.Items.Count == 0 && btSyncAppointments.Checked))
                     {
                         Log.Information("Loading Outlook folders...");
+                        SetLastSyncText("Loading Outlook folders...");
 
                         contactFoldersComboBox.Visible = btSyncContactsForceRTF.Visible = SyncPhotosCheckBox.Visible = btSyncContacts.Checked;
                         labelTimezone.Visible = btMonthsPast.Visible = btMonthsFuture.Visible = btSyncAppointments.Checked;
@@ -326,19 +327,100 @@ namespace GoContactSyncMod
                                 Log.Warning("Error adding OlDefaultFolders.olFolderCalendar: " + e.Message);
                             }                            
 
-                            var folders = Synchronizer.OutlookNameSpace.Folders;
-                            for (var i = 1; i <= folders.Count; i++)
-                            {
-                                try
-                                {
-                                    var folder = folders[i];
-                                    GetOutlookMAPIFolders(outlookContactFolders, outlookAppointmentFolders, folder);
+                            var skipFolderScan = "1".Equals(Environment.GetEnvironmentVariable("GCSM_SKIP_OUTLOOK_FOLDER_SCAN"), StringComparison.Ordinal);
+                            var defaultStoreOnly = "1".Equals(Environment.GetEnvironmentVariable("GCSM_SCAN_DEFAULT_STORE_ONLY"), StringComparison.Ordinal);
+                            var skipStoreContains = Environment.GetEnvironmentVariable("GCSM_SKIP_OUTLOOK_STORE_CONTAINS");
+                            var skipStoreTokens = string.IsNullOrWhiteSpace(skipStoreContains)
+                                ? new string[0]
+                                : skipStoreContains.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
 
-                                }
-                                catch (System.Exception e)
+                            if (skipFolderScan)
+                            {
+                                Log.Warning("Skipping deep Outlook folder scan because GCSM_SKIP_OUTLOOK_FOLDER_SCAN=1. Only default folders will be listed.");
+                            }
+                            else
+                            {
+                                var folderScanStopwatch = Stopwatch.StartNew();
+                                var scannedFolderCount = 0;
+                                var lastProgressUpdate = DateTime.MinValue;
+                                Action<string> reportFolderProgress = (folderPath) =>
                                 {
-                                    Log.Debug(e, "Exception");
-                                    Log.Warning("Error getting available Outlook folders: " + e.Message);
+                                    scannedFolderCount++;
+                                    var now = DateTime.UtcNow;
+                                    if ((now - lastProgressUpdate).TotalMilliseconds < 500)
+                                    {
+                                        return;
+                                    }
+                                    lastProgressUpdate = now;
+
+                                    var elapsed = folderScanStopwatch.Elapsed;
+                                    var progress = $"Loading Outlook folders... scanned {scannedFolderCount} folders in {elapsed:mm\\:ss}";
+                                    if (!string.IsNullOrWhiteSpace(folderPath))
+                                    {
+                                        progress += $" | {folderPath}";
+                                    }
+                                    SetLastSyncText(progress);
+                                    Application.DoEvents();
+                                };
+
+                                var folders = Synchronizer.OutlookNameSpace.Folders;
+                                string defaultContactsStoreId = null;
+                                if (defaultStoreOnly)
+                                {
+                                    try
+                                    {
+                                        var defaultContactsFolder = Synchronizer.OutlookNameSpace.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderContacts);
+                                        defaultContactsStoreId = defaultContactsFolder.StoreID;
+                                        Log.Warning("Scanning only default Outlook store because GCSM_SCAN_DEFAULT_STORE_ONLY=1.");
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Log.Warning($"Could not resolve default Outlook store ID, falling back to full store scan: {ex.Message}");
+                                        defaultStoreOnly = false;
+                                    }
+                                }
+
+                                for (var i = 1; i <= folders.Count; i++)
+                                {
+                                    try
+                                    {
+                                        var folder = folders[i];
+                                        var folderPath = folder.FolderPath;
+
+                                        if (defaultStoreOnly && !string.IsNullOrEmpty(defaultContactsStoreId) &&
+                                            !string.Equals(folder.StoreID, defaultContactsStoreId, StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            Log.Warning($"Skipping non-default Outlook store root: {folderPath}");
+                                            continue;
+                                        }
+
+                                        if (skipStoreTokens.Length > 0)
+                                        {
+                                            var skip = false;
+                                            foreach (var token in skipStoreTokens)
+                                            {
+                                                if (folderPath.IndexOf(token.Trim(), StringComparison.OrdinalIgnoreCase) >= 0)
+                                                {
+                                                    Log.Warning($"Skipping Outlook store root by token '{token.Trim()}': {folderPath}");
+                                                    skip = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (skip)
+                                            {
+                                                continue;
+                                            }
+                                        }
+
+                                        reportFolderProgress(folder.FolderPath);
+                                        GetOutlookMAPIFolders(outlookContactFolders, outlookAppointmentFolders, folder, reportFolderProgress);
+
+                                    }
+                                    catch (System.Exception e)
+                                    {
+                                        Log.Debug(e, "Exception");
+                                        Log.Warning("Error getting available Outlook folders: " + e.Message);
+                                    }
                                 }
                             }
 
@@ -463,7 +545,7 @@ namespace GoContactSyncMod
         /// <param name="outlookContactFolders">to be filled array with contact folders found</param>
         /// <param name="outlookAppointmentFolders">to be filled array with appointment folders found</param>
         /// <param name="folder">parent folder to scan through child folders</param>
-        public static void GetOutlookMAPIFolders(ArrayList outlookContactFolders, ArrayList outlookAppointmentFolders, Outlook.MAPIFolder folder)
+        public static void GetOutlookMAPIFolders(ArrayList outlookContactFolders, ArrayList outlookAppointmentFolders, Outlook.MAPIFolder folder, Action<string> reportFolderProgress = null)
         {
             for (var i = 1; i <= folder.Folders.Count; i++)
             {
@@ -471,6 +553,7 @@ namespace GoContactSyncMod
                 try
                 {
                     mapi = folder.Folders[i];
+                    reportFolderProgress?.Invoke(mapi.FolderPath);
                     if (mapi.DefaultItemType == Outlook.OlItemType.olContactItem)
                     {
                         var isDefaultFolder = mapi.EntryID.Equals(Synchronizer.OutlookNameSpace.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderContacts).EntryID);
@@ -488,7 +571,7 @@ namespace GoContactSyncMod
                     if (mapi.DefaultItemType == Outlook.OlItemType.olContactItem ||
                         mapi.DefaultItemType == Outlook.OlItemType.olAppointmentItem)
                     {
-                        GetOutlookMAPIFolders(outlookContactFolders, outlookAppointmentFolders, mapi);
+                        GetOutlookMAPIFolders(outlookContactFolders, outlookAppointmentFolders, mapi, reportFolderProgress);
                     }
                 }
                 catch (COMException e)
@@ -1671,6 +1754,7 @@ namespace GoContactSyncMod
 
         private void SettingsForm_Load(object sender, EventArgs e)
         {
+            var showWindowOnStart = !"0".Equals(Environment.GetEnvironmentVariable("GCSM_SHOW_WINDOW_ON_START"), StringComparison.Ordinal);
             if (string.IsNullOrEmpty(UserName.Text) ||
                 string.IsNullOrEmpty(cmbSyncProfile.Text))
             {
@@ -1684,7 +1768,15 @@ namespace GoContactSyncMod
             }
             else
             {
-                HideForm();
+                if (showWindowOnStart)
+                {
+                    Log.Information("Showing settings window on startup (GCSM_SHOW_WINDOW_ON_START != 0).");
+                    ShowForm();
+                }
+                else
+                {
+                    HideForm();
+                }
             }
         }
 

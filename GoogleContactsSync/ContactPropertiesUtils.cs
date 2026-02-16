@@ -47,19 +47,10 @@ namespace GoContactSyncMod
                 else
                     DateTime.TryParse(googleContactEntry.UpdateTimeDateTimeOffset.ToString(),out lastUpdated);                
             }
-            else
-            {
-                lastUpdated = DateTime.Now;
-            }
-
-            if (lastUpdated == null)
-                lastUpdated = DateTime.Now;
 
             if (lastUpdated.Kind == DateTimeKind.Utc)
                 lastUpdated = TimeZoneInfo.ConvertTimeFromUtc(lastUpdated, TimeZoneInfo.Local);
-
-            lastUpdated = lastUpdated.AddSeconds(-lastUpdated.Second);
-            
+             
             return lastUpdated;
         }
 
@@ -68,13 +59,9 @@ namespace GoContactSyncMod
             var lastUpdated = DateTime.MinValue;
             if (oci.LastModificationTime != null)
                 lastUpdated = oci.LastModificationTime;
-            else
-                lastUpdated = DateTime.Now;
 
             if (lastUpdated.Kind == DateTimeKind.Utc)
                 lastUpdated = TimeZoneInfo.ConvertTimeFromUtc(lastUpdated, TimeZoneInfo.Local);
-
-            lastUpdated = lastUpdated.AddSeconds(-lastUpdated.Second);
 
             return lastUpdated;
         }

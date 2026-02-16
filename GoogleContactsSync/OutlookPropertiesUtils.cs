@@ -210,7 +210,7 @@ namespace GoContactSyncMod
                     changed = true;
                 }
                 var now = DateTime.Now;
-                p2.Value = now.AddSeconds(-now.Second);
+                p2.Value = now;
 
 
                 p3 = userProps[Synchronizer.OutlookPropertyNameEtag];

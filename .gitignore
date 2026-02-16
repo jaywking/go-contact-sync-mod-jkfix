@@ -1,0 +1,9 @@
+GoogleContactsSync/bin/
+GoogleContactsSync/obj/
+SetupGCSM/obj/
+SetupGCSM/Packages/
+packages/
+dist/
+*.log
+build-private-*.log
+.nuget/NuGet.local.config

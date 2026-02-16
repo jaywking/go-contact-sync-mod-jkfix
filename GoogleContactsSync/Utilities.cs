@@ -338,7 +338,7 @@ namespace GoContactSyncMod
         /// after truncating to minutes you compare 15:00 wiht 16:00
         /// Better take 120 seconds, because when resetting matches the time difference can be up to 2 minutes
         /// </summary>
-        private static int TimeTolerance = 60;
+        private static int TimeTolerance = 120;
         internal static bool UpdatedSinceLastSync(DateTime d, DateTime s)
         {
             return (int)d.Subtract(s).TotalSeconds > TimeTolerance;

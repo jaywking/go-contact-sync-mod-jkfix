@@ -2883,13 +2883,23 @@ namespace GoContactSyncMod
         {
             if (match.GoogleContact != null && match.OutlookContact != null)
             {
-                if (match.GoogleContactDirty)
+                var missingOutlookGoogleId = string.IsNullOrEmpty(match.OutlookContact.UserProperties.GoogleContactId);
+                var missingGoogleOutlookId = string.IsNullOrEmpty(ContactPropertiesUtils.GetGoogleOutlookContactId(match.GoogleContact));
+
+                if (match.GoogleContactDirty || missingOutlookGoogleId || missingGoogleOutlookId)
                 {
-                    //google contact was modified. save.
+                    // Google contact was modified or link metadata must be persisted. Save once to keep stable matching IDs.
                     if (SaveGoogleContact(match))
                     {
                         SyncedCount++;
-                        Log.Information($"Updated contact from Outlook to Google: \"{match}\".");
+                        if (match.GoogleContactDirty)
+                        {
+                            Log.Information($"Updated contact from Outlook to Google: \"{match}\".");
+                        }
+                        else
+                        {
+                            Log.Information($"Persisted contact match IDs for: \"{match}\".");
+                        }
                     }
                     else
                     {
@@ -4378,13 +4388,23 @@ namespace GoContactSyncMod
                 lock (_syncRoot)
                 {
                     Log.Information("Resetting Google Person matches...");
+                    var resetGoogleCount = 0;
+                    var skippedGoogleCount = 0;
                     foreach (var gc in GoogleContacts)
                     {
                         try
                         {
                             if (gc != null)
                             {
-                                ResetMatch(gc);
+                                var resetGc = ResetMatch(gc);
+                                if (!ReferenceEquals(resetGc, gc))
+                                {
+                                    resetGoogleCount++;
+                                }
+                                else
+                                {
+                                    skippedGoogleCount++;
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -4392,9 +4412,12 @@ namespace GoContactSyncMod
                             Log.Warning($"The match of Google contact {ContactMatch.GetName(gc)} couldn't be reset: {ex.Message}");
                         }
                     }
+                    Log.Information($"Reset Google contact matches: updated {resetGoogleCount}, skipped {skippedGoogleCount} without sync metadata.");
 
                     Log.Information("Resetting Outlook Contact matches...");
 
+                    var resetOutlookCount = 0;
+                    var skippedOutlookCount = 0;
                     var item = OutlookContacts.GetFirst();
                     while (item != null)
                     {
@@ -4407,7 +4430,14 @@ namespace GoContactSyncMod
                         {
                             try
                             {
-                                ResetMatch(oc);
+                                if (ResetMatch(oc))
+                                {
+                                    resetOutlookCount++;
+                                }
+                                else
+                                {
+                                    skippedOutlookCount++;
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -4429,6 +4459,7 @@ namespace GoContactSyncMod
                         Marshal.ReleaseComObject(item);
                         item = OutlookContacts.GetNext();
                     }
+                    Log.Information($"Reset Outlook contact matches: updated {resetOutlookCount}, skipped {skippedOutlookCount} without sync metadata.");
                 }
             }
             finally
@@ -4495,6 +4526,11 @@ namespace GoContactSyncMod
         {
             if (gc != null)
             {
+                if (string.IsNullOrEmpty(ContactPropertiesUtils.GetGoogleOutlookContactId(gc)))
+                {
+                    return gc;
+                }
+
                 ContactPropertiesUtils.ResetGoogleOutlookId(gc);
                 return SaveGoogleContact(gc);
             }
@@ -4507,13 +4543,25 @@ namespace GoContactSyncMod
         /// <summary>
         /// Reset the match link between Outlook and Google contact
         /// </summary>
-        public void ResetMatch(ContactItem oc)
+        public bool ResetMatch(ContactItem oc)
         {
             if (oc != null)
             {
+                var hasSyncMetadata =
+                    !string.IsNullOrEmpty(ContactPropertiesUtils.GetOutlookGoogleId(oc)) ||
+                    ContactPropertiesUtils.GetOutlookLastSync(oc).HasValue ||
+                    !string.IsNullOrEmpty(ContactPropertiesUtils.GetOutlookLastEtag(oc));
+
+                if (!hasSyncMetadata)
+                {
+                    return false;
+                }
+
                 ContactPropertiesUtils.ResetOutlookGoogleId(this, oc);
                 Save(ref oc);
+                return true;
             }
+            return false;
         }
 
         /// <summary>
