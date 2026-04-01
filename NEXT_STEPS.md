@@ -24,3 +24,27 @@ git apply .\patches\contact-resync-fix-r1587.patch
 - Patch artifact: `patches/contact-resync-fix-r1587.patch`
 - Build script: `scripts/build-private.ps1`
 - Test checklist: `TEST_PLAN.md`
+
+## Tomorrow Priority: Startup "Loading Outlook folders" UX fix
+
+Problem:
+- App can appear hung on startup while scanning Outlook folders.
+- Current behavior is confusing even when work is still progressing.
+
+Goal:
+- Never look stuck during folder discovery.
+- Show clear progress and recovery guidance.
+
+Proposed implementation:
+1. Add a visible startup progress indicator with elapsed time + scanned folder count.
+2. Add periodic heartbeat log/UI updates while scanning.
+3. Add "Cancel scan" option and fail-safe timeout path.
+4. Add a first-run prompt to choose scan mode:
+- `Fast`: default store only
+- `Full`: all stores/folders
+5. Persist chosen scan mode per profile.
+
+Acceptance criteria:
+- On startup, user always sees active progress within 1 second.
+- If scan exceeds threshold (for example 30s), UI shows actionable message (continue/cancel/switch to fast mode).
+- No scenario where window is open but static with no status changes.

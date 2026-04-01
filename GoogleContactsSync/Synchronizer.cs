@@ -94,6 +94,7 @@ namespace GoContactSyncMod
         public Collection<ContactMatch> GoogleContactDuplicates { get; set; }
 
         public Collection<Person> GoogleContacts { get; private set; }
+        public Collection<Person> AllGoogleContacts { get; private set; }
         private CalendarService GoogleCalendarService;
         public Collection<Event> GoogleAppointments { get; private set; }
         public Collection<Event> AllGoogleAppointments { get; private set; }
@@ -110,6 +111,7 @@ namespace GoContactSyncMod
 
         public static string SyncProfile { get; set; }
         public static string SyncContactsFolder { get; set; }
+        public static string SyncContactsGoogleGroup { get; set; }
         public static string SyncAppointmentsFolder { get; set; }
         public static string SyncAppointmentsGoogleFolder { get; set; }
         public static string SyncAppointmentsGoogleTimeZone { get; set; }
@@ -890,6 +892,7 @@ namespace GoContactSyncMod
                 OutlookContactDuplicates = null;
                 GoogleContactDuplicates = null;
                 GoogleContacts = null;
+                AllGoogleContacts = null;
                 GoogleCalendarService = null;
                 GooglePeopleService = null;
                 GoogleAppointments = null;
@@ -1139,10 +1142,7 @@ namespace GoContactSyncMod
                                         if (!string.IsNullOrEmpty(id) && id.Equals(ContactPropertiesUtils.GetGoogleId(a), StringComparison.InvariantCultureIgnoreCase))
                                         {
                                             ret = a;
-                                            if (GoogleContacts == null)
-                                                GoogleContacts = new Collection<Person>();
-                                            if (!GoogleContacts.Contains(a))
-                                                GoogleContacts.Add(a);//Only add found item to global GoogleContacts, if a single contact was searched for (e.g. not found before)
+                                            TrackGoogleContactInMemory(a);
 
                                             Log.Debug($"Loaded Google Contact with id {id}.");
 
@@ -1158,7 +1158,12 @@ namespace GoContactSyncMod
                         if (string.IsNullOrEmpty(id)) //Only update global GoogleContacts, if not a single contact was searched for
                         {
                             Log.Debug("Loaded Google Contacts.");
-                            GoogleContacts = googleContacts;
+                            AllGoogleContacts = googleContacts;
+                            GoogleContacts = FilterGoogleContactsForSync(googleContacts);
+                            if (!string.IsNullOrEmpty(SyncContactsGoogleGroup))
+                            {
+                                Log.Information($"Google contact label filter active. Included {GoogleContacts.Count} of {AllGoogleContacts.Count} Google contacts.");
+                            }
                             return ret;
                         }
                         else //Contact not found => try again
@@ -1205,6 +1210,77 @@ namespace GoContactSyncMod
             //}
             Log.Debug($"Google Contact with id {id} not found.");
             return ret;
+        }
+
+        private void TrackGoogleContactInMemory(Person googleContact)
+        {
+            if (googleContact == null)
+            {
+                return;
+            }
+
+            if (AllGoogleContacts == null)
+            {
+                AllGoogleContacts = new Collection<Person>();
+            }
+            if (!AllGoogleContacts.Contains(googleContact))
+            {
+                AllGoogleContacts.Add(googleContact);
+            }
+
+            if (IsGoogleContactSelectedForSync(googleContact))
+            {
+                if (GoogleContacts == null)
+                {
+                    GoogleContacts = new Collection<Person>();
+                }
+                if (!GoogleContacts.Contains(googleContact))
+                {
+                    GoogleContacts.Add(googleContact);
+                }
+            }
+        }
+
+        private Collection<Person> FilterGoogleContactsForSync(Collection<Person> googleContacts)
+        {
+            var filteredContacts = new Collection<Person>();
+            if (googleContacts == null)
+            {
+                return filteredContacts;
+            }
+
+            foreach (var googleContact in googleContacts)
+            {
+                if (string.IsNullOrEmpty(SyncContactsGoogleGroup) || IsGoogleContactSelectedForSync(googleContact))
+                {
+                    filteredContacts.Add(googleContact);
+                }
+            }
+
+            return filteredContacts;
+        }
+
+        private static bool IsGoogleContactSelectedForSync(Person googleContact)
+        {
+            if (googleContact == null || string.IsNullOrEmpty(SyncContactsGoogleGroup))
+            {
+                return true;
+            }
+
+            if (googleContact.Memberships == null)
+            {
+                return false;
+            }
+
+            foreach (var membership in googleContact.Memberships)
+            {
+                if (membership?.ContactGroupMembership?.ContactGroupResourceName == SyncContactsGoogleGroup)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
 
@@ -2485,6 +2561,7 @@ namespace GoContactSyncMod
                 finally
                 {
                     GoogleContacts = null;
+                    AllGoogleContacts = null;
                     GoogleAppointments = null;
                     OutlookContactDuplicates = null;
                     GoogleContactDuplicates = null;
@@ -4289,6 +4366,10 @@ namespace GoContactSyncMod
                 }
                 if (!found)
                 {
+                    if (!string.IsNullOrEmpty(SyncContactsGoogleGroup) && group.ResourceName == SyncContactsGoogleGroup)
+                    {
+                        continue;
+                    }
                     remove.Add(group);
                 }
             }
@@ -4333,6 +4414,19 @@ namespace GoContactSyncMod
                     {
                         Utilities.AddGoogleGroup(slave, g);
                     }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(SyncContactsGoogleGroup))
+            {
+                var selectedSyncGroup = GetGoogleGroupByResourceName(SyncContactsGoogleGroup);
+                if (selectedSyncGroup != null)
+                {
+                    Utilities.AddGoogleGroup(slave, selectedSyncGroup);
+                }
+                else
+                {
+                    Log.Warning($"Configured Google contact label filter could not be resolved and was not enforced on contact save: {SyncContactsGoogleGroup}");
                 }
             }
 
@@ -4465,6 +4559,7 @@ namespace GoContactSyncMod
             finally
             {
                 GoogleContacts = null;
+                AllGoogleContacts = null;
             }
         }
 
@@ -4664,17 +4759,33 @@ namespace GoContactSyncMod
             {
                 return gc;
             }
+            else if (ShouldSkipRemoteGoogleContactLookup())
+            {
+                Log.Debug($"Skipping direct Google contact lookup for id {gid} because the full Google contact set is already loaded for this sync and the id was not found.");
+                return null;
+            }
             else
             {
                 return LoadGoogleContacts(gid);
             }
         }
 
+        private bool ShouldSkipRemoteGoogleContactLookup()
+        {
+            return AllGoogleContacts != null;
+        }
+
         public Person GetGoogleContactById(string id)
         {
             if (!string.IsNullOrEmpty(id))
             {
-                foreach (var gc in GoogleContacts)
+                var contacts = AllGoogleContacts ?? GoogleContacts;
+                if (contacts == null)
+                {
+                    return null;
+                }
+
+                foreach (var gc in contacts)
                 {
                     //var slash = id.LastIndexOf("/"); //ToDo: For Backward compatibility with old GoogleContact-API: remove the prefix from the id (e.g. 1c0d39680d700698 from http://www.google.com/m8/feeds/contacts/saller.flo%40gmail.com/base/1c0d39680d700698)
                     //id = id.Substring(slash+1);

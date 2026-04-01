@@ -108,6 +108,7 @@ namespace GoContactSyncMod
         public const string RegistryUseFileAs = "UseFileAs";
         public const string RegistryLastSync = "LastSync";
         public const string RegistrySyncContactsFolder = "SyncContactsFolder";
+        public const string RegistrySyncContactsGoogleGroup = "SyncContactsGoogleGroup";
         public const string RegistrySyncAppointmentsFolder = "SyncAppointmentsFolder";
         public const string RegistrySyncAppointmentsGoogleFolder = "SyncAppointmentsGoogleFolder";
         public const string RegistrySyncProfile = "SyncProfile";
@@ -122,10 +123,33 @@ namespace GoContactSyncMod
         private const string OutlookStartModeSkipDisplay = "Skip check";
 
         private string syncContactsFolder = "";
+        private string syncContactsGoogleGroup = "";
         private string syncAppointmentsFolder = "";
         private string syncAppointmentsGoogleFolder = "";
         private string Timezone = "";
         private int cmbSyncProfile_PreviouslySelectedIndex = -1;
+
+        private sealed class GoogleContactGroupOption : IComparable
+        {
+            public GoogleContactGroupOption(string displayName, string groupId)
+            {
+                DisplayName = displayName;
+                GroupId = groupId;
+            }
+
+            public string DisplayName { get; }
+            public string GroupId { get; }
+
+            public int CompareTo(object obj)
+            {
+                if (obj is GoogleContactGroupOption other)
+                {
+                    return string.Compare(DisplayName, other.DisplayName, StringComparison.CurrentCultureIgnoreCase);
+                }
+
+                return 1;
+            }
+        }
 
         //private string _syncProfile;
         private static string SyncProfile
@@ -256,6 +280,66 @@ namespace GoContactSyncMod
             return false;
         }
 
+        private bool WaitForOutlookStartupReadiness(int timeoutSeconds = 45)
+        {
+            var deadline = DateTime.Now.AddSeconds(timeoutSeconds);
+            var waitStarted = DateTime.Now;
+            while (DateTime.Now < deadline)
+            {
+                if (!IsOutlookRunning())
+                {
+                    return false;
+                }
+
+                try
+                {
+                    var outlookProcesses = Process.GetProcessesByName("OUTLOOK");
+                    if (outlookProcesses.Length == 0)
+                    {
+                        return false;
+                    }
+
+                    DateTime oldestStart = DateTime.Now;
+                    var hasStartTime = false;
+                    var hasWindow = false;
+
+                    foreach (var process in outlookProcesses)
+                    {
+                        if (!hasStartTime || process.StartTime < oldestStart)
+                        {
+                            oldestStart = process.StartTime;
+                            hasStartTime = true;
+                        }
+
+                        if (process.MainWindowHandle != IntPtr.Zero)
+                        {
+                            hasWindow = true;
+                        }
+                    }
+
+                    // Treat Outlook as ready when either the main window exists
+                    // or process uptime has passed a minimum stabilization period.
+                    var minimumWarmupReached = hasStartTime && (DateTime.Now - oldestStart).TotalSeconds >= 12;
+                    if (hasWindow || minimumWarmupReached)
+                    {
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug(ex, "Could not evaluate Outlook startup readiness. Continuing.");
+                    return true;
+                }
+
+                var waited = DateTime.Now - waitStarted;
+                SetLastSyncText($"Waiting for Outlook to finish loading... {waited:mm\\:ss}");
+                Application.DoEvents();
+                Thread.Sleep(500);
+            }
+
+            return false;
+        }
+
         private string GetOutlookStartMode()
         {
             if (outlookStartModeComboBox != null && outlookStartModeComboBox.SelectedItem != null)
@@ -342,7 +426,14 @@ namespace GoContactSyncMod
             }
 
             var googleAccount = string.IsNullOrWhiteSpace(UserName.Text) ? "(none)" : UserName.Text.Trim();
-            profileBindingLabel.Text = $"Profile binding: {profileName} | Outlook: {outlookFolderName} | Google: {googleAccount}";
+            var googleLabel = "All Contacts";
+            if (googleContactGroupsComboBox?.SelectedItem is GoogleContactGroupOption selectedGoogleGroup &&
+                !string.IsNullOrWhiteSpace(selectedGoogleGroup.GroupId))
+            {
+                googleLabel = selectedGoogleGroup.DisplayName;
+            }
+
+            profileBindingLabel.Text = $"Profile binding: {profileName} | Outlook: {outlookFolderName} | Google: {googleAccount} | Label: {googleLabel}";
         }
 
         private void OutlookStartModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
@@ -465,10 +556,24 @@ namespace GoContactSyncMod
                         contactFoldersComboBox.Items.Count == 0 || appointmentFoldersComboBox.Items.Count == 0 ||
                         (appointmentGoogleFoldersComboBox.Items.Count == 0 && btSyncAppointments.Checked))
                     {
+                        if (!EnsureOutlookReadyForSync())
+                        {
+                            SetLastSyncText("Outlook not running. Start Outlook, wait until it is fully loaded, then retry.");
+                            return;
+                        }
+
+                        if (!WaitForOutlookStartupReadiness())
+                        {
+                            Log.Warning("Outlook was detected but did not become startup-ready before folder scan timeout.");
+                            SetLastSyncText("Outlook still loading. Wait a moment and retry folder load.");
+                            return;
+                        }
+
                         Log.Information("Loading Outlook folders...");
                         SetLastSyncText("Loading Outlook folders...");
 
-                        contactFoldersComboBox.Visible = btSyncContactsForceRTF.Visible = SyncPhotosCheckBox.Visible = btSyncContacts.Checked;
+                        contactFoldersComboBox.Visible = googleContactGroupsComboBox.Visible = googleContactGroupLabel.Visible =
+                            btSyncContactsForceRTF.Visible = SyncPhotosCheckBox.Visible = btSyncContacts.Checked;
                         labelTimezone.Visible = btMonthsPast.Visible = btMonthsFuture.Visible = btSyncAppointments.Checked;
                         appointmentFoldersComboBox.Visible = appointmentGoogleFoldersComboBox.Visible = appointmentTimezonesComboBox.Visible = btSyncAppointmentsForceRTF.Visible = btSyncAppointmentsPrivate.Visible = btSyncAppointments.Checked;
                         futureMonthInterval.Visible = btSyncAppointments.Checked && btMonthsFuture.Checked;
@@ -846,6 +951,10 @@ namespace GoContactSyncMod
             {
                 outlookStartModeComboBox.SelectedIndexChanged -= new EventHandler(OutlookStartModeComboBox_SelectedIndexChanged);
             }
+            if (googleContactGroupsComboBox != null)
+            {
+                googleContactGroupsComboBox.SelectedIndexChanged -= new EventHandler(GoogleContactGroupsComboBox_SelectedIndexChanged);
+            }
 
             ReadRegistryIntoCheckBox(autoSyncCheckBox, regKeyAppRoot.GetValue(RegistryAutoSync));
             ReadRegistryIntoNumber(autoSyncInterval, regKeyAppRoot.GetValue(RegistryAutoSyncInterval));
@@ -902,6 +1011,8 @@ namespace GoContactSyncMod
             _proxy.LoadSettings(_profile);
 
             contactFoldersComboBox.Visible = btSyncContacts.Checked;
+            googleContactGroupsComboBox.Visible = btSyncContacts.Checked;
+            googleContactGroupLabel.Visible = btSyncContacts.Checked;
             btSyncContactsForceRTF.Visible = btSyncContacts.Checked;
             SyncPhotosCheckBox.Visible = btSyncContacts.Checked;
             appointmentFoldersComboBox.Visible = appointmentGoogleFoldersComboBox.Visible = btSyncAppointments.Checked;
@@ -921,6 +1032,10 @@ namespace GoContactSyncMod
             if (outlookStartModeComboBox != null)
             {
                 outlookStartModeComboBox.SelectedIndexChanged += new EventHandler(OutlookStartModeComboBox_SelectedIndexChanged);
+            }
+            if (googleContactGroupsComboBox != null)
+            {
+                googleContactGroupsComboBox.SelectedIndexChanged += new EventHandler(GoogleContactGroupsComboBox_SelectedIndexChanged);
             }
             UpdateProfileBindingLabel();
         }
@@ -981,6 +1096,25 @@ namespace GoContactSyncMod
                         break;
                     }
                 }
+            }
+
+            if (googleContactGroupsComboBox.DataSource == null)
+            {
+                LoadGoogleContactGroupsComboBox();
+            }
+
+            regKeyValueStr = regKeyAppRoot.GetValue(RegistrySyncContactsGoogleGroup) as string;
+            if (!string.IsNullOrEmpty(regKeyValueStr))
+            {
+                googleContactGroupsComboBox.SelectedValue = regKeyValueStr;
+                if (googleContactGroupsComboBox.SelectedIndex == -1 && googleContactGroupsComboBox.Items.Count > 0)
+                {
+                    googleContactGroupsComboBox.SelectedIndex = 0;
+                }
+            }
+            else if (googleContactGroupsComboBox.Items.Count > 0)
+            {
+                googleContactGroupsComboBox.SelectedIndex = 0;
             }
 
             regKeyValueStr = regKeyAppRoot.GetValue(RegistrySyncAppointmentsFolder) as string;
@@ -1059,6 +1193,7 @@ namespace GoContactSyncMod
                 // Persist selected folders per profile immediately so profile-to-folder mapping survives restarts
                 // even if no sync has run yet.
                 regKeyAppRoot.SetValue(RegistrySyncContactsFolder, syncContactsFolder ?? string.Empty);
+                regKeyAppRoot.SetValue(RegistrySyncContactsGoogleGroup, syncContactsGoogleGroup ?? string.Empty);
                 regKeyAppRoot.SetValue(RegistrySyncAppointmentsFolder, syncAppointmentsFolder ?? string.Empty);
                 regKeyAppRoot.SetValue(RegistrySyncAppointmentsGoogleFolder, syncAppointmentsGoogleFolder ?? string.Empty);
 
@@ -1266,6 +1401,7 @@ namespace GoContactSyncMod
                     /*SetSyncConsoleText(Logger.GetText());*/
                     Synchronizer.SyncProfile = SyncProfile;
                     Synchronizer.SyncContactsFolder = syncContactsFolder;
+                    Synchronizer.SyncContactsGoogleGroup = syncContactsGoogleGroup;
                     Synchronizer.SyncAppointmentsFolder = syncAppointmentsFolder;
                     Synchronizer.SyncAppointmentsGoogleFolder = syncAppointmentsGoogleFolder;
                     Synchronizer.RestrictMonthsInPast = btMonthsPast.Checked;
@@ -1788,6 +1924,7 @@ namespace GoContactSyncMod
             sync.SyncAppointments = syncAppointments;
 
             Synchronizer.SyncContactsFolder = syncContactsFolder;
+            Synchronizer.SyncContactsGoogleGroup = syncContactsGoogleGroup;
             Synchronizer.SyncAppointmentsFolder = syncAppointmentsFolder;
             Synchronizer.SyncAppointmentsGoogleFolder = syncAppointmentsGoogleFolder;
             Synchronizer.SyncProfile = SyncProfile;
@@ -2123,6 +2260,8 @@ namespace GoContactSyncMod
                 btSyncAppointments.Checked = true;
             }
             contactFoldersComboBox.Visible = btSyncContacts.Checked;
+            googleContactGroupsComboBox.Visible = btSyncContacts.Checked;
+            googleContactGroupLabel.Visible = btSyncContacts.Checked;
             btSyncContactsForceRTF.Visible = btSyncContacts.Checked;
             SyncPhotosCheckBox.Visible = btSyncContacts.Checked;
             ValidateSyncButton();
@@ -2465,6 +2604,73 @@ namespace GoContactSyncMod
             }
         }
 
+        private void LoadGoogleContactGroupsComboBox()
+        {
+            Log.Debug("Loading Google contact labels...");
+
+            var googleContactGroups = new ArrayList
+            {
+                new GoogleContactGroupOption("All Contacts", string.Empty)
+            };
+
+            googleContactGroupsComboBox.BeginUpdate();
+
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(UserName.Text))
+                {
+                    if (sync == null)
+                    {
+                        sync = new Synchronizer();
+                    }
+
+                    sync.SyncContacts = btSyncContacts.Checked;
+                    sync.LoginToGoogle(UserName.Text);
+                    sync.LoadGoogleGroups();
+
+                    if (sync.GoogleGroups != null)
+                    {
+                        foreach (var group in sync.GoogleGroups)
+                        {
+                            if (group != null &&
+                                !string.IsNullOrWhiteSpace(group.Name) &&
+                                group.ResourceName != Synchronizer.myContactsGroup)
+                            {
+                                googleContactGroups.Add(new GoogleContactGroupOption(group.Name, group.ResourceName));
+                            }
+                        }
+                    }
+                }
+
+                googleContactGroups.Sort();
+                googleContactGroupsComboBox.DataSource = googleContactGroups;
+                googleContactGroupsComboBox.DisplayMember = "DisplayName";
+                googleContactGroupsComboBox.ValueMember = "GroupId";
+                googleContactGroupsComboBox.SelectedIndex = 0;
+            }
+            finally
+            {
+                googleContactGroupsComboBox.EndUpdate();
+            }
+
+            Log.Debug("Loaded Google contact labels");
+        }
+
+        private void GoogleContactGroupsComboBox_Enter(object sender, EventArgs e)
+        {
+            if (googleContactGroupsComboBox.DataSource == null || googleContactGroupsComboBox.Items.Count == 0)
+            {
+                LoadGoogleContactGroupsComboBox();
+            }
+        }
+
+        private void GoogleContactGroupsComboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            syncContactsGoogleGroup = googleContactGroupsComboBox.SelectedValue as string ?? string.Empty;
+            PersistCurrentProfileSettings();
+            UpdateProfileBindingLabel();
+        }
+
         private void LoadAppointmentGoogleFoldersComboBox()
         {
             Log.Debug("Loading Google Appointments folders...");
@@ -2574,6 +2780,8 @@ namespace GoContactSyncMod
                 if (prevUserName != UserName.Text)
                 {
                     prevUserName = UserName.Text;
+                    googleContactGroupsComboBox.DataSource = null;
+                    LoadGoogleContactGroupsComboBox();
                     LoadAppointmentGoogleFoldersComboBox();
                 }
             }

@@ -743,6 +743,12 @@ namespace GoContactSyncMod
                             sync.UpdateContact(oc, match.GoogleContact, match);
                             return;
                         }
+                        if (NeedsOutlookToGooglePhoneRepair(oc, match.GoogleContact))
+                        {
+                            Log.Debug($"Repairing Google contact from Outlook in {sync.SyncOption} because Google is missing synchronized phone data: {match.OutlookContact.FileAs}.");
+                            sync.UpdateContact(oc, match.GoogleContact, match);
+                            return;
+                        }
                         if (GoogleUpdatedSinceLastSync)
                         {
                             var reason = googleEtagDiffersFromLastSync ? "etag changed" : "timestamp changed";
@@ -889,6 +895,102 @@ namespace GoContactSyncMod
             }
 
             return null;
+        }
+
+        private static bool NeedsOutlookToGooglePhoneRepair(Outlook.ContactItem outlookContact, Person googleContact)
+        {
+            if (outlookContact == null || googleContact == null)
+            {
+                return false;
+            }
+
+            var outlookPhones = new[]
+            {
+                outlookContact.PrimaryTelephoneNumber,
+                outlookContact.MobileTelephoneNumber,
+                outlookContact.HomeTelephoneNumber,
+                outlookContact.Home2TelephoneNumber,
+                outlookContact.BusinessTelephoneNumber,
+                outlookContact.Business2TelephoneNumber,
+                outlookContact.HomeFaxNumber,
+                outlookContact.BusinessFaxNumber,
+                outlookContact.OtherFaxNumber,
+                outlookContact.OtherTelephoneNumber,
+                outlookContact.PagerNumber,
+                outlookContact.CarTelephoneNumber,
+                outlookContact.AssistantTelephoneNumber,
+                outlookContact.CallbackTelephoneNumber,
+                outlookContact.RadioTelephoneNumber,
+                outlookContact.TTYTDDTelephoneNumber,
+                outlookContact.CompanyMainTelephoneNumber
+            };
+
+            foreach (var outlookPhone in outlookPhones)
+            {
+                if (string.IsNullOrWhiteSpace(outlookPhone))
+                {
+                    continue;
+                }
+
+                if (!ContainsEquivalentGooglePhone(outlookPhone, googleContact.PhoneNumbers))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool ContainsEquivalentGooglePhone(string outlookPhone, IList<PhoneNumber> googlePhones)
+        {
+            if (string.IsNullOrWhiteSpace(outlookPhone) || googlePhones == null)
+            {
+                return false;
+            }
+
+            foreach (var googlePhone in googlePhones)
+            {
+                if (googlePhone != null && AreEquivalentPhoneValues(outlookPhone, googlePhone.Value))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool AreEquivalentPhoneValues(string left, string right)
+        {
+            if (string.IsNullOrWhiteSpace(left) || string.IsNullOrWhiteSpace(right))
+            {
+                return false;
+            }
+
+            if (left.Trim().Equals(right.Trim(), StringComparison.InvariantCultureIgnoreCase))
+            {
+                return true;
+            }
+
+            return NormalizePhoneValue(left).Equals(NormalizePhoneValue(right), StringComparison.InvariantCultureIgnoreCase);
+        }
+
+        private static string NormalizePhoneValue(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return string.Empty;
+            }
+
+            var chars = new List<char>(value.Length);
+            foreach (var c in value)
+            {
+                if (char.IsLetterOrDigit(c) || c == '+')
+                {
+                    chars.Add(c);
+                }
+            }
+
+            return new string(chars.ToArray());
         }
 
         /// <summary>
