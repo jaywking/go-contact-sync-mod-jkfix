@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Go Contact Sync Mod")]
-[assembly: AssemblyDescription("Synchronize your Outlook and Google contacts. Visit our Project Homepage at https://googlesyncmod.sourceforge.io/")]
+[assembly: AssemblyDescription("Synchronize your Outlook and Google contacts. Unofficial maintained fork home: https://github.com/jaywking/go-contact-sync-mod-jkfix")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("WebGear Ltd, New Zealand + Create Software + Stru.be + saller.NET + Big-R + obelix30")]
 [assembly: AssemblyProduct("GO Contact Sync Mod")] //forked from GO Contact Sync, updated by Create Software and Stru.be and saller.NET

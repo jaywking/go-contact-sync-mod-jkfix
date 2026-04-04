@@ -462,7 +462,7 @@ namespace GoContactSyncMod
                 }
                 catch (Exception ex)
                 {
-                    var message = $"Cannot connect to Outlook.\r\nPlease restart {Application.ProductName} and try again. If error persists, please inform developers on SourceForge.";
+                    var message = $"Cannot connect to Outlook.\r\nPlease restart {Application.ProductName} and try again. If the error persists, check the Outlook troubleshooting guide or open a GitHub issue:\r\n{VersionInformation.OutlookTroubleshootingUrl}\r\n{VersionInformation.NewIssueUrl}";
                     // Error again? We need full stacktrace, display it!
                     throw new Exception(message, ex);
                 }

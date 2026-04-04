@@ -9,11 +9,11 @@
     <SchemaVersion>2.0</SchemaVersion>
     <OutputName>SetupGCSM</OutputName>
     <OutputType>Package</OutputType>
-    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND Exists('$(SolutionDir)packages\wix.3.14.1\tools\wix.targets')">$(SolutionDir)packages\wix.3.14.1\tools\wix.targets</WixTargetsPath>
+    <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND Exists('$(SolutionDir)\packages\wix.3.14.1\tools\wix.targets')">$(SolutionDir)\packages\wix.3.14.1\tools\wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' AND '$(MSBuildExtensionsPath32)' != '' ">$(MSBuildExtensionsPath32)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <WixTargetsPath Condition=" '$(WixTargetsPath)' == '' ">$(MSBuildExtensionsPath)\Microsoft\WiX\v3.x\Wix.targets</WixTargetsPath>
     <Name>SetupGCSM</Name>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">$(MSBuildProjectDirectory)\..\</SolutionDir>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">$(MSBuildProjectDirectory)\..</SolutionDir>
     <RestorePackages>true</RestorePackages>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
@@ -57,7 +57,6 @@
     <Content Include="Resources\WixUIDialogBanner.bmp" />
     <Content Include="Resources\WixUITopBanner.bmp" />
     <Content Include="TODO.txt" />
-    <Content Include="upload2sf.template.ps1" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Lang\de-de\Loc_de-de.wxl" />
@@ -94,13 +93,13 @@
 	-->
   <!--
   <Target Name="BeforeBuild">
-    <HeatProject ToolPath="$(WixToolPath)" GenerateGuidsNow="true" OutputFile="$(ProjectDir)Fragments\BinariesAndSymbolsFilesFragment.wxs" SuppressFragments="true" Project="$(SolutionDir)GoogleContactsSync\GoogleContactsSync.csproj" ProjectOutputGroups="Binaries;Symbols" />
+    <HeatProject ToolPath="$(WixToolPath)" GenerateGuidsNow="true" OutputFile="$(ProjectDir)Fragments\BinariesAndSymbolsFilesFragment.wxs" SuppressFragments="true" Project="$(SolutionDir)\GoogleContactsSync\GoogleContactsSync.csproj" ProjectOutputGroups="Binaries;Symbols" />
   </Target>
   -->
   <Target Name="BeforeBuild">
     <Message Text="$(TestProperty)" Importance="high" />
     <!--Read AssemblyInfo.cs-->
-    <GetAssemblyIdentity AssemblyFiles="$(SolutionDir)GoogleContactsSync\bin\$(Configuration)\GoContactSync.exe">
+    <GetAssemblyIdentity AssemblyFiles="$(SolutionDir)\GoogleContactsSync\bin\$(Configuration)\GoContactSync.exe">
       <Output TaskParameter="Assemblies" ItemName="AssemblyVersions" />
     </GetAssemblyIdentity>
     <!--Read Assembly version-->
@@ -155,7 +154,7 @@
     <IntermediateOutputPath>obj\$(Platform)\$(Configuration)\</IntermediateOutputPath>
   </PropertyGroup>
   <Target Name="ZipReleaseBuildEn" AfterTargets="Build">
-    <ZipDirectory SourceDirectory="$(SolutionDir)GoogleContactsSync\bin\$(Configuration)" DestinationFile="$(TargetZipFile)" Overwrite="true" />
+    <ZipDirectory SourceDirectory="$(SolutionDir)\GoogleContactsSync\bin\$(Configuration)" DestinationFile="$(TargetZipFile)" Overwrite="true" />
   </Target>
   <Target Name="MoveReleaseFiles" AfterTargets="ZipReleaseBuildEn">
     <Move SourceFiles="$(TargetZipFile)" DestinationFolder="$(TargetVersionDirectory)" />
@@ -172,9 +171,6 @@
       <LineText Include="%(Line.Text)" />
     </ItemGroup>
     <WriteLinesToFile File="$(ProjectDir)Packages\en-us\updates_v1.xml" Lines="@(LineText)" Overwrite="true" />
-  </Target>
-  <Target Name="CreateUploadBatchForSourceforgeReleaseSystem" AfterTargets="CreateVersionFileForAutoUpdate">
-    <WriteLinesToFile File="$(ProjectDir)Packages\en-us\upload2sf.ps1" Lines="$([System.IO.File]::ReadAllText($(ProjectDir)upload2sf.template.ps1).Replace('&lt;release&gt;','$(ShortAssemblyVersion)'))" Overwrite="true" />
   </Target>
   <!--
 	<Target Name="WriteVersionToUpdaterFile" AfterTargets="Build">
@@ -193,6 +189,6 @@
     <Delete Files="@(FilesToDelete)" />
   </Target>
   <PropertyGroup>
-    <PreBuildEvent>"$(SolutionDir)packages\wix.3.14.1\tools\heat.exe" dir "$(SolutionDir)GoogleContactsSync\bin\$(Configuration)" -cg GoogleContactsSync.Binaries -gg -scom -sreg -sfrag -srd -dr INSTALLLOCATION  -var var.GoogleContactsSync.TargetDir -v -t "$(ProjectDir)HarvestTransform.xsl" -out "$(ProjectDir)Fragments\BinariesFragment.wxs"</PreBuildEvent>
+    <PreBuildEvent>"$(SolutionDir)\packages\wix.3.14.1\tools\heat.exe" dir "$(SolutionDir)\GoogleContactsSync\bin\$(Configuration)" -cg GoogleContactsSync.Binaries -gg -scom -sreg -sfrag -srd -dr INSTALLLOCATION  -var var.GoogleContactsSync.TargetDir -v -t "$(ProjectDir)HarvestTransform.xsl" -out "$(ProjectDir)Fragments\BinariesFragment.wxs"</PreBuildEvent>
   </PropertyGroup>
 </Project>

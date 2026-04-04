@@ -15,6 +15,20 @@ namespace GoContactSyncMod
     internal static class VersionInformation
     {
         private static readonly HttpClient _httpClient = new HttpClient();
+        internal const string RepositoryUrl = "https://github.com/jaywking/go-contact-sync-mod-jkfix";
+        internal const string ReleasesUrl = RepositoryUrl + "/releases";
+        internal const string LatestReleaseUrl = ReleasesUrl + "/latest";
+        internal const string LatestReleaseDownloadUrl = RepositoryUrl + "/releases/latest/download";
+        internal const string IssuesUrl = RepositoryUrl + "/issues";
+        internal const string NewIssueUrl = RepositoryUrl + "/issues/new/choose";
+        internal const string SupportUrl = RepositoryUrl + "/blob/main/SUPPORT.md";
+        internal const string OutlookTroubleshootingUrl = RepositoryUrl + "/blob/main/docs/TROUBLESHOOTING_OUTLOOK.md";
+        internal const string UpdateFeedUrl = LatestReleaseDownloadUrl + "/updates_v1.xml";
+
+        static VersionInformation()
+        {
+            _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd("GOContactSyncMod-JKFix");
+        }
 
         public enum OutlookMainVersion
         {
@@ -122,15 +136,28 @@ namespace GoContactSyncMod
             }
         }
 
+        public static string GetGCSMVersionLabel()
+        {
+            var displayVersion = GetGCSMDisplayVersion();
+            var installerVersion = GetGCSMVersion()?.ToString();
+
+            if (string.IsNullOrWhiteSpace(installerVersion) || string.Equals(displayVersion, installerVersion, StringComparison.OrdinalIgnoreCase))
+            {
+                return displayVersion;
+            }
+
+            return $"{displayVersion} (installer {installerVersion})";
+        }
+
         public static async Task<bool> IsNewVersionAvailable(CancellationToken cancellationToken)
         {
-            Log.Information("Reading version number from sf.net...");
+            Log.Information("Reading version number from GitHub releases...");
             try
             {
                 //specify to use TLS 1.2 as default connection
                 ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
 
-                var response = await _httpClient.GetAsync("https://sourceforge.net/projects/googlesyncmod/files/updates_v1.xml", HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                var response = await _httpClient.GetAsync(UpdateFeedUrl, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
 
                 response.EnsureSuccessStatusCode();
                 var stream = await response.Content.ReadAsStreamAsync();
@@ -147,17 +174,17 @@ namespace GoContactSyncMod
                     var result = webVersionNumber.CompareTo(localVersion);
                     if (result > 0)
                     {   //newer version found
-                        Log.Information($"New version of GCSM available on sf.net{addOn}!");
+                        Log.Information($"New version of GO Contact Sync Mod JKFix available on GitHub releases{addOn}!");
                         return true;
                     }
                     else if(result < 0)
                     {
-                        Log.Information($"You are using a PRE-RELEASE version of GCSM{addOn}.");
+                        Log.Information($"You are using a pre-release JKFix build{addOn}.");
                         return false;
                     }
                     else
                     {   //older or same version found
-                        Log.Information($"You are using the latest version of GCSM ({strVersion}). Installed build: {localDisplayVersion}.");
+                        Log.Information($"You are using the latest numeric installer version ({strVersion}). Installed build: {localDisplayVersion}.");
                         return false;
                     }
                 }
@@ -168,7 +195,7 @@ namespace GoContactSyncMod
             }
             catch (Exception ex)
             {
-                Log.Information("Could not read version number from sf.net...");
+                Log.Information("Could not read version number from GitHub releases...");
                 Log.Debug(ex, "Exception");
                 return false;
             }

@@ -147,7 +147,7 @@
     </UI>
     
     <!-- Set the icon to show next to the program name in Add/Remove programs -->
-    <Icon Id="GoogleContactsSyncMod.ico" SourceFile="$(var.SolutionDir)GoogleContactsSync\Resources\contacts-sync.ico" />
+    <Icon Id="GoogleContactsSyncMod.ico" SourceFile="$(var.SolutionDir)\GoogleContactsSync\Resources\contacts-sync.ico" />
     <Property Id="ARPPRODUCTICON" Value="GoogleContactsSyncMod.ico" />
 
     <!-- the default directory structure -->

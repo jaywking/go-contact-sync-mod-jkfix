@@ -40,8 +40,8 @@ namespace GoContactSyncMod
                 AppendTextWithColor("PLEASE UPDATE TO THE LATEST VERSION!" + Environment.NewLine, Color.Firebrick);
             }
 
-            AppendTextWithColor("FIRST CHECK IF THIS ERROR HAS ALREADY BEEN REPORTED!", Color.Firebrick);
-            AppendTextWithColor(Environment.NewLine + "IF THE PROBLEM STILL EXISTS WRITE AN ERROR REPORT ", Color.Firebrick);
+            AppendTextWithColor("FIRST CHECK WHETHER THIS ERROR HAS ALREADY BEEN REPORTED!", Color.Firebrick);
+            AppendTextWithColor(Environment.NewLine + "IF THE PROBLEM STILL EXISTS, OPEN A GITHUB ISSUE ", Color.Firebrick);
             var bugsLink = new LinkLabel
             {
                 Text = "HERE!",
@@ -55,7 +55,7 @@ namespace GoContactSyncMod
             richTextBoxError.AppendText(Environment.NewLine);
             richTextBoxError.AppendText(Environment.NewLine);
 
-            richTextBoxError.AppendText("GCSM VERSION:    " + VersionInformation.GetGCSMVersion().ToString());
+            richTextBoxError.AppendText("APP VERSION:     " + VersionInformation.GetGCSMVersionLabel());
             richTextBoxError.AppendText(Environment.NewLine);
             richTextBoxError.AppendText("OUTLOOK VERSION: " + VersionInformation.GetOutlookVersion(Synchronizer.OutlookApplication).ToString() + Environment.NewLine);
             richTextBoxError.AppendText("OS VERSION:      " + VersionInformation.GetWindowsVersion() + Environment.NewLine);
@@ -107,12 +107,12 @@ namespace GoContactSyncMod
 
         private void OpenDowloadUrl(object sender, EventArgs e)
         {
-            Process.Start("https://sourceforge.net/projects/googlesyncmod/files/latest/download");
+            Process.Start(VersionInformation.LatestReleaseUrl);
         }
 
         private void OpenBugsUrl(object sender, EventArgs e)
         {
-            Process.Start("https://sourceforge.net/p/googlesyncmod/bugs/?source=navbar");
+            Process.Start(VersionInformation.NewIssueUrl);
         }
 
         private void ErrorDialog_FormClosed(object sender, FormClosedEventArgs e)

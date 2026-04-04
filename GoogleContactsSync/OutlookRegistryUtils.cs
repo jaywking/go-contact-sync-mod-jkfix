@@ -7,6 +7,11 @@ namespace GoContactSyncMod
 {
     internal static class OutlookRegistryUtils
     {
+        private static string GetTroubleshootingMessage()
+        {
+            return "Please read the Outlook troubleshooting guide and fix your Office installation: " + VersionInformation.OutlookTroubleshootingUrl;
+        }
+
         public static string GetOutlookVersion()
         {
             var ret = string.Empty;
@@ -90,7 +95,7 @@ namespace GoContactSyncMod
                 var typeLib = interfaceKey.GetValue(string.Empty).ToString();
                 if (typeLib != "{00062FFF-0000-0000-C000-000000000046}")
                 {
-                    return "Your registry " + interfaceKey.ToString() + " points to TypeLib " + typeLib + " and should to {00062FFF-0000-0000-C000-000000000046}" + registryVersion + ".\r\nPlease read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+                    return "Your registry " + interfaceKey.ToString() + " points to TypeLib " + typeLib + " and should to {00062FFF-0000-0000-C000-000000000046}" + registryVersion + ".\r\n" + GetTroubleshootingMessage();
                 }
 
                 var versionObj = interfaceKey.GetValue("Version");
@@ -99,17 +104,17 @@ namespace GoContactSyncMod
                     var version = versionObj.ToString();
                     if (version != registryVersion)
                     {
-                        return "Your registry " + interfaceKey.ToString() + " points to version " + version + " and your Outlook is installed with version " + registryVersion + ".\r\nPlease read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+                        return "Your registry " + interfaceKey.ToString() + " points to version " + version + " and your Outlook is installed with version " + registryVersion + ".\r\n" + GetTroubleshootingMessage();
                     }
                 }
                 else
                 {
-                    return "There is no version key in registry " + interfaceKey.ToString() + ".\r\nPlease read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+                    return "There is no version key in registry " + interfaceKey.ToString() + ".\r\n" + GetTroubleshootingMessage();
                 }
             }
             else
             {
-                return "Cannot open registry " + interfaceVersion + ".\r\nPlease read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+                return "Cannot open registry " + interfaceVersion + ".\r\n" + GetTroubleshootingMessage();
             }
 
             if (!string.IsNullOrEmpty(registryVersion))
@@ -122,7 +127,7 @@ namespace GoContactSyncMod
                     var path = mainKey.GetValue(string.Empty).ToString();
                     if (!File.Exists(path))
                     {
-                        return "Your registry " + mainKey.ToString() + " points to file " + path + " and this file does not exist.\r\nPlease read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+                        return "Your registry " + mainKey.ToString() + " points to file " + path + " and this file does not exist.\r\n" + GetTroubleshootingMessage();
                     }
                 }
                 mainKey = Registry.ClassesRoot.OpenSubKey(RegKey + "win64", false);
@@ -131,7 +136,7 @@ namespace GoContactSyncMod
                     var path = mainKey.GetValue(string.Empty).ToString();
                     if (!File.Exists(path))
                     {
-                        return "Your registry " + mainKey.ToString() + " points to file " + path + " and this file does not exist.\r\nPlease read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+                        return "Your registry " + mainKey.ToString() + " points to file " + path + " and this file does not exist.\r\n" + GetTroubleshootingMessage();
                     }
                 }
 
@@ -151,11 +156,11 @@ namespace GoContactSyncMod
                             }
                         }
                         allKeys = allKeys.Substring(0, allKeys.Length - 1);
-                        return "Your registry " + mainKey.ToString() + " points to Office versions: " + allKeys + " other than you have installed \"" + ConvertRegistryVersionToString(registryVersion) + "\".\r\nPlease read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+                        return "Your registry " + mainKey.ToString() + " points to Office versions: " + allKeys + " other than you have installed \"" + ConvertRegistryVersionToString(registryVersion) + "\".\r\n" + GetTroubleshootingMessage();
                     }
                 }
             }
-            return "Please read FAQ (https://sourceforge.net/p/googlesyncmod/faq/2016/05/fixing-office-installation/) and fix your Office installation";
+            return GetTroubleshootingMessage();
         }
 
         private static string GetClickToRunVersion()

@@ -465,11 +465,14 @@ namespace GoContactSyncMod
 
             cancellationTokenSource = new CancellationTokenSource();
             InitializeComponent();
-            Text = Text + " - " + Application.ProductVersion;
+            Donate.Visible = false;
+            Donate.Enabled = false;
+            Donate.TabStop = false;
+            Text = Text + " - " + VersionInformation.GetGCSMDisplayVersion();
 
             Program.EnableLogHandler(LogUpdatedHandler);
 
-            Log.Information($"Started application {Application.ProductName} ({Application.ProductVersion}) on {VersionInformation.GetWindowsVersion()} and {OutlookRegistryUtils.GetOutlookVersion()}");
+            Log.Information($"Started application {Application.ProductName} ({VersionInformation.GetGCSMVersionLabel()}) on {VersionInformation.GetWindowsVersion()} and {OutlookRegistryUtils.GetOutlookVersion()}");
 
             var Folder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\GoContactSyncMOD\\";
             Log.Information($"Detailed log file created in directory: {Folder}");
@@ -1573,7 +1576,7 @@ namespace GoContactSyncMod
             // do not show ErrorHandler, as there may be multiple exceptions that would nag the user
             Log.Error(ex.Message);
             Log.Debug(ex, "Exception");
-            var message = $"Error Saving Person: {ex.Message}.\nPlease report complete ErrorMessage from Log to the Tracker\nat https://sourceforge.net/tracker/?group_id=369321";
+            var message = $"Error saving person: {ex.Message}.\nPlease search existing GitHub issues first, then open a new issue and attach the complete error text and log:\n{VersionInformation.NewIssueUrl}";
             ShowBalloonToolTip(title, message, ToolTipIcon.Error, 5000, true);
         }
 
@@ -2085,7 +2088,7 @@ namespace GoContactSyncMod
                     {
                         NewVersionLinkLabel.Visible = true;
                         NewVersionLinkLabel.LinkColor = Color.Red;
-                        NewVersionLinkLabel.Text = "New Version of GCSM available on sf.net!";
+                        NewVersionLinkLabel.Text = "New JKFix release available on GitHub.";
                         notifyIcon.BalloonTipClicked += NotifyIcon_BalloonTipClickedDownloadNewVersion;
                         ShowBalloonToolTip("New version available", "Click here to download", ToolTipIcon.Info, 20000, false);
                     }
@@ -2101,7 +2104,7 @@ namespace GoContactSyncMod
 
         private void NotifyIcon_BalloonTipClickedDownloadNewVersion(object sender, EventArgs e)
         {
-            Process.Start("https://sourceforge.net/projects/googlesyncmod/files/latest/download");
+            Process.Start(VersionInformation.LatestReleaseUrl);
             notifyIcon.BalloonTipClicked -= NotifyIcon_BalloonTipClickedDownloadNewVersion;
         }
 
@@ -2210,7 +2213,7 @@ namespace GoContactSyncMod
 
         private void Donate_Click(object sender, EventArgs e)
         {
-            Process.Start("https://sourceforge.net/project/project_donations.php?group_id=369321");
+            Process.Start(VersionInformation.SupportUrl);
         }
 
         private void Donate_MouseEnter(object sender, EventArgs e)
@@ -2249,7 +2252,7 @@ namespace GoContactSyncMod
         private static void ShowHelp()
         {
             // go to the page showing the help and howto instructions
-            Process.Start("https://googlesyncmod.sourceforge.io/");
+            Process.Start(VersionInformation.RepositoryUrl);
         }
 
         private void BtSyncContacts_CheckedChanged(object sender, EventArgs e)
@@ -2743,13 +2746,13 @@ namespace GoContactSyncMod
         {
             if (((LinkLabel)sender).LinkColor == Color.Red)
             {
-                Log.Debug("Process Start for https://sourceforge.net/projects/googlesyncmod/files/latest/download");
-                Process.Start("https://sourceforge.net/projects/googlesyncmod/files/latest/download");
+                Log.Debug($"Process Start for {VersionInformation.LatestReleaseUrl}");
+                Process.Start(VersionInformation.LatestReleaseUrl);
             }
             else
             {
-                Log.Debug("Process Start for https://sourceforge.net/projects/googlesyncmod/");
-                Process.Start("https://sourceforge.net/projects/googlesyncmod/");
+                Log.Debug($"Process Start for {VersionInformation.ReleasesUrl}");
+                Process.Start(VersionInformation.ReleasesUrl);
             }
         }
 

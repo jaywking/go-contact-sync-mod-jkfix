@@ -1308,11 +1308,10 @@ namespace GoContactSyncMod
             this.NewVersionLinkLabel.LinkColor = System.Drawing.Color.Blue;
             this.NewVersionLinkLabel.Location = new System.Drawing.Point(231, 630);
             this.NewVersionLinkLabel.Name = "NewVersionLinkLabel";
-            this.NewVersionLinkLabel.Size = new System.Drawing.Size(426, 13);
+            this.NewVersionLinkLabel.Size = new System.Drawing.Size(373, 13);
             this.NewVersionLinkLabel.TabIndex = 1;
             this.NewVersionLinkLabel.TabStop = true;
-            this.NewVersionLinkLabel.Text = "You are using the latest version of GCSM, click here to open GCSM homepage on sf." +
-    "net!";
+            this.NewVersionLinkLabel.Text = "You are using the latest installed release. Click here to open GitHub releases.";
             this.NewVersionLinkLabel.Visible = false;
             this.NewVersionLinkLabel.LinkClicked += new System.Windows.Forms.LinkLabelLinkClickedEventHandler(this.NewVersionLinkLabel_LinkClicked);
             // 

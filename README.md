@@ -1,6 +1,6 @@
 # GO Contact Sync Mod JKFix
 
-Private fork of GO Contact Sync Mod with a stable contacts-sync patch set for Outlook -> Google workflows.
+Unofficial maintained fork of GO Contact Sync Mod with a stable contacts-sync patch set for Outlook -> Google workflows.
 
 ## Why This Fork Exists
 
@@ -33,6 +33,13 @@ Direct download links:
 
 - MSI installer: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.4/SetupGCSM-4.3.0-jkfix.4.msi`
 - ZIP (portable): `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.4/GOContactSyncMod-4.3.0-jkfix.4.zip`
+
+## Support
+
+- Download updates from GitHub Releases: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases`
+- Report bugs and regressions on GitHub Issues: `https://github.com/jaywking/go-contact-sync-mod-jkfix/issues`
+- Support guide: `SUPPORT.md`
+- Outlook/Office troubleshooting: `docs/TROUBLESHOOTING_OUTLOOK.md`
 
 ## What This Fork Fixes
 
@@ -74,7 +81,6 @@ After (jkfix expected behavior):
 Known limitations:
 
 - Contacts that match multiple Google contacts are intentionally skipped until duplicates are resolved.
-- Upstream version checker may still reference upstream numeric line (`4.3.0`) while app title/log includes `jkfix` build.
 
 SHA256 checksums for release assets:
 
@@ -156,6 +162,14 @@ Uninstall:
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\install-private.ps1 -Scope CurrentUser -Uninstall
 ```
+
+## Updating an Existing JKFix Install
+
+1. Download the newest `SetupGCSM-<version>.msi` from GitHub Releases.
+2. Run the MSI over your existing installed `jkfix` build.
+3. Launch the app from Start Menu and confirm the window title shows the new `jkfix` version.
+
+Do not install upstream SourceForge releases over this fork unless you intentionally want to switch away from `jkfix`.
 
 ## Package ZIP
 

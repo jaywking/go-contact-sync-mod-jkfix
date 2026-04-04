@@ -16,7 +16,7 @@ namespace GoContactSyncMod
             InitializeComponent();
             Text = $"About {AssemblyTitle}";
             labelProductName.Text = AssemblyProduct;
-            labelVersion.Text = $"Version {AssemblyVersion}";
+            labelVersion.Text = $"Version {VersionInformation.GetGCSMVersionLabel()}";
             labelCopyright.Text = AssemblyCopyright;
             labelCompanyName.Text = AssemblyCompany;
             textBoxDescription.Text = AssemblyDescription;
@@ -41,7 +41,7 @@ namespace GoContactSyncMod
             }
         }
 
-        public static string AssemblyVersion => Assembly.GetExecutingAssembly().GetName().Version.ToString();
+        public static string AssemblyVersion => VersionInformation.GetGCSMVersionLabel();
 
         public static string AssemblyDescription
         {
