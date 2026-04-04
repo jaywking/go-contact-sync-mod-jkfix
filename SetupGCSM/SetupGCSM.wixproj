@@ -122,11 +122,20 @@
     <CreateProperty Value="$(TargetDir)$(TargetFileName)">
       <Output TaskParameter="Value" PropertyName="TargetPath" />
     </CreateProperty>
-    <CreateProperty Value="$(TargetDir)en-us\GCSM-$(ShortAssemblyVersion)-($(Configuration)).zip">
+    <CreateProperty Value="GCSM-$(ShortAssemblyVersion)-($(Configuration)).zip">
+      <Output TaskParameter="Value" PropertyName="TargetZipFileName" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetDir)en-us\$(TargetZipFileName)">
       <Output TaskParameter="Value" PropertyName="TargetZipFile" />
     </CreateProperty>
     <CreateProperty Value="$(TargetDir)en-us\$(ShortAssemblyVersion)">
       <Output TaskParameter="Value" PropertyName="TargetVersionDirectory" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetVersionDirectory)\$(TargetFileName)">
+      <Output TaskParameter="Value" PropertyName="VersionedMsiPath" />
+    </CreateProperty>
+    <CreateProperty Value="$(TargetVersionDirectory)\$(TargetZipFileName)">
+      <Output TaskParameter="Value" PropertyName="VersionedZipPath" />
     </CreateProperty>
     <MakeDir Directories="$(TargetVersionDirectory)" />
   </Target>
@@ -159,6 +168,9 @@
   <Target Name="MoveReleaseFiles" AfterTargets="ZipReleaseBuildEn">
     <Move SourceFiles="$(TargetZipFile)" DestinationFolder="$(TargetVersionDirectory)" />
     <Move SourceFiles="$(TargetPath)" DestinationFolder="$(TargetVersionDirectory)" />
+  </Target>
+  <Target Name="PrepareReleaseAssets" AfterTargets="MoveReleaseFiles">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(SolutionDir)\scripts\prepare-release-assets.ps1&quot; -VersionDirectory &quot;$(TargetVersionDirectory)&quot; -MsiPath &quot;$(VersionedMsiPath)&quot; -ZipPath &quot;$(VersionedZipPath)&quot;" />
   </Target>
   <Target Name="CreateVersionFileForAutoUpdate" AfterTargets="ZipReleaseBuildEn">
     <ItemGroup>
