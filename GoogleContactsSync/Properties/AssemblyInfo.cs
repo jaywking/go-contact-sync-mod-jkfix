@@ -33,7 +33,7 @@ using System.Runtime.InteropServices;
 //      Build Number
 //      Revision
 //
-[assembly: AssemblyVersion("4.3.3")]
-[assembly: AssemblyFileVersion("4.3.3")]
-[assembly: AssemblyInformationalVersion("4.3.0-jkfix.6")]
+[assembly: AssemblyVersion("4.3.4")]
+[assembly: AssemblyFileVersion("4.3.4")]
+[assembly: AssemblyInformationalVersion("4.3.0-jkfix.7")]
 [assembly: NeutralResourcesLanguage("en-US")]

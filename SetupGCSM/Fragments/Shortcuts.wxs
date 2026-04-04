@@ -1,6 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <Fragment>
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="RememberInstallLocation" Guid="{31393C3A-8E0A-4E48-BB09-4B7CD570638E}" Permanent="yes" Win64="no">
+        <RegistryValue Root="HKLM"
+                       Key="Software\GOContactSyncModJKFix\Installer"
+                       Name="InstallLocation"
+                       Type="string"
+                       Value="[INSTALLLOCATION]"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+  <Fragment>
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="ApplicationShortcut" Guid="{0FE12FB9-FD46-4DFA-A36B-2B4320419FBF}">
         <Shortcut Id="ApplicationStartMenuShortcut"
@@ -15,6 +27,7 @@
   </Fragment>
   <Fragment>
     <ComponentGroup Id="Shortcuts">
+      <ComponentRef Id="RememberInstallLocation"/>
       <ComponentRef Id="ApplicationShortcut"/>
     </ComponentGroup>
   </Fragment>

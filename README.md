@@ -25,14 +25,14 @@ If you found this repo by searching, these are the issue phrases this fork targe
 
 ## Current Stable Release
 
-- App informational version: `4.3.0-jkfix.6`
-- Release tag: `v4.3.0-jkfix.6`
-- Release page: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/tag/v4.3.0-jkfix.6`
+- App informational version: `4.3.0-jkfix.7`
+- Release tag: `v4.3.0-jkfix.7`
+- Release page: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/tag/v4.3.0-jkfix.7`
 
 Direct download links:
 
-- MSI installer: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.6/SetupGCSM-4.3.0-jkfix.6.msi`
-- ZIP (portable): `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.6/GOContactSyncMod-4.3.0-jkfix.6.zip`
+- MSI installer: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.7/SetupGCSM-4.3.0-jkfix.7.msi`
+- ZIP (portable): `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.7/GOContactSyncMod-4.3.0-jkfix.7.zip`
 
 ## Support
 
@@ -51,16 +51,16 @@ Direct download links:
 - Fixes per-profile folder persistence so each sync profile reliably keeps its own selected source/target folders.
 - Adds private build/install/package automation scripts.
 
-## Quick Install (Pinned to jkfix.6)
+## Quick Install (Pinned to jkfix.7)
 
 1. Download MSI from the release page.
-2. Run `SetupGCSM-4.3.0-jkfix.6.msi`.
-3. Launch app and verify title shows `4.3.0-jkfix.6`.
+2. Run `SetupGCSM-4.3.0-jkfix.7.msi`.
+3. Launch app and verify title shows `4.3.0-jkfix.7`.
 4. Select correct sync profile and Outlook source folder.
 
 Portable ZIP option:
 
-1. Download `GOContactSyncMod-4.3.0-jkfix.6.zip`.
+1. Download `GOContactSyncMod-4.3.0-jkfix.7.zip`.
 2. Extract anywhere.
 3. Run `GOContactSync.exe`.
 
@@ -84,12 +84,18 @@ Known limitations:
 
 SHA256 checksums for release assets:
 
-- `GOContactSyncMod-4.3.0-jkfix.6.zip`  
-  `A76DE14F19B212CCD1C0512A6E27CC4C96B2B22D8D068D0E89DD5C256C617D5E`
-- `SetupGCSM-4.3.0-jkfix.6.msi`  
-  `DE3C0D34306C0D8562AB4BBCFECBBB7EF8DE07A5250EF2D803604C89F939C1B8`
+- `GOContactSyncMod-4.3.0-jkfix.7.zip`  
+  `9396C8F8F28CB40116F4C019B49FE994204519EDB3303AD504D1335AFBC4DC0A`
+- `SetupGCSM-4.3.0-jkfix.7.msi`  
+  `F595A735B3D79D131001E87DD1A15B6917516E4CBF59C4F785D10D9C5AE9F449`
 
 ## Changelog
+
+### 4.3.0-jkfix.7
+
+- Installer now remembers the previously chosen install path across uninstall, reinstall, and upgrade.
+- Added automated MSI regression coverage for default-path, custom-path, reinstall, fallback, and upgrade path handling.
+- Bumped numeric assembly/file version to `4.3.4` so the installed MSI upgrades in place over `4.3.3`.
 
 ### 4.3.0-jkfix.6
 
@@ -190,7 +196,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package-private.ps1
 
 Output:
 
-- `dist\GOContactSyncMod-4.3.0-jkfix.6.zip`
+- `dist\GOContactSyncMod-4.3.0-jkfix.7.zip`
 
 ## Known Notes
 

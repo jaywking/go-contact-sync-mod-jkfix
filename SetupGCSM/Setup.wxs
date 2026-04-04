@@ -16,6 +16,15 @@
 
     <Media Id="1" Cabinet="gcsm.cab" EmbedCab="yes" />
 
+    <Property Id="REMEMBEREDINSTALLLOCATION">
+      <RegistrySearch Id="RememberedInstallLocationSearch"
+                      Root="HKLM"
+                      Key="Software\GOContactSyncModJKFix\Installer"
+                      Name="InstallLocation"
+                      Type="raw"
+                      Win64="no" />
+    </Property>
+
     <MajorUpgrade
       DowngradeErrorMessage="!(loc.GoogleContactSyncModNewerVersionInstalled)"
       AllowDowngrades="no"
@@ -115,6 +124,16 @@
       <!-- WixCloseApplications is a built in custom action that uses util:CloseApplication below -->
       <Custom Action="WixCloseApplications" Before="InstallInitialize" />
     </InstallExecuteSequence>
+
+    <SetProperty Id="INSTALLLOCATION"
+                 Value="[REMEMBEREDINSTALLLOCATION]"
+                 After="AppSearch"
+                 Sequence="both">NOT Installed AND NOT INSTALLLOCATION AND REMEMBEREDINSTALLLOCATION</SetProperty>
+
+    <SetProperty Id="ARPINSTALLLOCATION"
+                 Value="[INSTALLLOCATION]"
+                 After="CostFinalize"
+                 Sequence="execute">NOT Installed</SetProperty>
 
 
 
