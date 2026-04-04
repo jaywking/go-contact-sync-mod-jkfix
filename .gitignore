@@ -8,3 +8,5 @@ dist/
 *.log
 build-private-*.log
 .nuget/NuGet.local.config
+TEST_PLAN.md
+VERIFICATION.md
