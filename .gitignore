@@ -6,6 +6,7 @@ SetupGCSM/Fragments/BinariesFragment.wxs
 packages/
 dist/
 *.log
+msi-install-*.log
 build-private-*.log
 .nuget/NuGet.local.config
 TEST_PLAN.md
