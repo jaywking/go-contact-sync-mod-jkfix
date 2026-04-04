@@ -56,7 +56,6 @@
     </Content>
     <Content Include="Resources\WixUIDialogBanner.bmp" />
     <Content Include="Resources\WixUITopBanner.bmp" />
-    <Content Include="TODO.txt" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Lang\de-de\Loc_de-de.wxl" />

@@ -141,7 +141,6 @@ SHA256 checksums for release assets:
 - `scripts/build-private.ps1` - restore + build script
 - `scripts/install-private.ps1` - local installer-style deployment (Start Menu/Desktop shortcut)
 - `scripts/package-private.ps1` - creates release ZIP
-- `patches/contact-resync-fix-r1587.patch` - patch export
 
 ## Build
 
