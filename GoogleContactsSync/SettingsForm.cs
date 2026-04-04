@@ -121,6 +121,9 @@ namespace GoContactSyncMod
         private const string OutlookStartModePromptDisplay = "Prompt";
         private const string OutlookStartModeAutoDisplay = "Auto-start Outlook";
         private const string OutlookStartModeSkipDisplay = "Skip check";
+        private const int SyncOptionsBottomPadding = 12;
+        private const int SyncOptionsSectionGap = 10;
+        private const int SummaryLineGap = 3;
 
         private string syncContactsFolder = "";
         private string syncContactsGoogleGroup = "";
@@ -433,7 +436,102 @@ namespace GoContactSyncMod
                 googleLabel = selectedGoogleGroup.DisplayName;
             }
 
-            profileBindingLabel.Text = $"Profile binding: {profileName} | Outlook: {outlookFolderName} | Google: {googleAccount} | Label: {googleLabel}";
+            var profileSummary = $"Profile: {profileName}";
+            var outlookSummary = $"Outlook folder: {outlookFolderName}";
+            var googleAccountSummary = $"Google account: {googleAccount}";
+            var googleLabelSummary = $"Google label: {googleLabel}";
+
+            profileBindingLabel.Text = profileSummary;
+            outlookBindingLabel.Text = outlookSummary;
+            googleAccountBindingLabel.Text = googleAccountSummary;
+            googleLabelBindingLabel.Text = googleLabelSummary;
+
+            toolTip.SetToolTip(profileBindingLabel, profileSummary);
+            toolTip.SetToolTip(outlookBindingLabel, outlookSummary);
+            toolTip.SetToolTip(googleAccountBindingLabel, googleAccountSummary);
+            toolTip.SetToolTip(googleLabelBindingLabel, googleLabelSummary);
+        }
+
+        private void UpdateSyncOptionsLayout()
+        {
+            if (syncOptionsGroupBox == null || syncOptionBox == null || panel1 == null)
+            {
+                return;
+            }
+
+            var topContentBottom = btSyncAppointments.Bottom;
+            var topControls = new Control[]
+            {
+                contactFoldersComboBox,
+                googleContactGroupsComboBox,
+                btSyncContactsForceRTF,
+                appointmentFoldersComboBox,
+                appointmentGoogleFoldersComboBox,
+                btSyncAppointmentsForceRTF,
+                labelTimezone,
+                appointmentTimezonesComboBox,
+                btSyncAppointmentsPrivate,
+                btMonthsPast,
+                pastMonthInterval,
+                btMonthsFuture,
+                futureMonthInterval,
+                SyncRemindersCheckBox,
+                IncludePastRemindersCheckBox
+            };
+
+            foreach (var control in topControls)
+            {
+                if (control != null && control.Visible)
+                {
+                    topContentBottom = Math.Max(topContentBottom, control.Bottom);
+                }
+            }
+
+            var summaryLabels = new[] { profileBindingLabel, outlookBindingLabel, googleAccountBindingLabel, googleLabelBindingLabel };
+            var summaryHeight = 0;
+            for (var i = 0; i < summaryLabels.Length; i++)
+            {
+                summaryHeight += summaryLabels[i].Height;
+                if (i > 0)
+                {
+                    summaryHeight += SummaryLineGap;
+                }
+            }
+
+            var summaryVisible = true;
+            var summaryTop = syncOptionsGroupBox.ClientSize.Height - SyncOptionsBottomPadding - summaryHeight;
+            var optionsTop = topContentBottom + SyncOptionsSectionGap;
+            var optionsBottom = summaryTop - SyncOptionsSectionGap;
+            var minOptionsHeight = 36;
+
+            if (optionsBottom - optionsTop < minOptionsHeight)
+            {
+                summaryVisible = false;
+                optionsBottom = syncOptionsGroupBox.ClientSize.Height - SyncOptionsBottomPadding;
+            }
+
+            syncOptionBox.Top = optionsTop;
+            syncOptionBox.Height = Math.Max(minOptionsHeight, optionsBottom - optionsTop);
+
+            if (SyncPhotosCheckBox.Visible)
+            {
+                SyncPhotosCheckBox.Top = syncOptionBox.Top + Math.Max(0, syncOptionBox.ItemHeight - 1);
+            }
+
+            panel1.Visible = summaryVisible;
+            foreach (var label in summaryLabels)
+            {
+                label.Visible = summaryVisible;
+            }
+
+            if (summaryVisible)
+            {
+                panel1.Top = summaryTop - SyncOptionsSectionGap;
+                profileBindingLabel.Top = summaryTop;
+                outlookBindingLabel.Top = profileBindingLabel.Bottom + SummaryLineGap;
+                googleAccountBindingLabel.Top = outlookBindingLabel.Bottom + SummaryLineGap;
+                googleLabelBindingLabel.Top = googleAccountBindingLabel.Bottom + SummaryLineGap;
+            }
         }
 
         private void OutlookStartModeComboBox_SelectedIndexChanged(object sender, EventArgs e)
@@ -461,7 +559,7 @@ namespace GoContactSyncMod
 
             /* Cannot set Font in designer as there is automatic sorting and Font will be set after AutoScaleDimensions
              * This will prevent application to work correctly with high DPI systems. */
-            Font = new Font("Verdana", 8.25F, FontStyle.Regular, GraphicsUnit.Point, 0);
+            Font = new Font("Segoe UI", 10F, FontStyle.Regular, GraphicsUnit.Point, 0);
 
             cancellationTokenSource = new CancellationTokenSource();
             InitializeComponent();
@@ -490,6 +588,7 @@ namespace GoContactSyncMod
             ProfileRegistry = FillSyncProfileItems() ? cmbSyncProfile.Text : null;
             LoadSettings(ProfileRegistry);
             UpdateProfileBindingLabel();
+            UpdateSyncOptionsLayout();
 
             //enable the listener
             cmbSyncProfile.SelectedIndexChanged += new EventHandler(CmbSyncProfile_SelectedIndexChanged);
@@ -1041,6 +1140,7 @@ namespace GoContactSyncMod
                 googleContactGroupsComboBox.SelectedIndexChanged += new EventHandler(GoogleContactGroupsComboBox_SelectedIndexChanged);
             }
             UpdateProfileBindingLabel();
+            UpdateSyncOptionsLayout();
         }
 
         private static bool ReadRegistryIntoCheckBox(CheckBox checkbox, object registryEntry)
@@ -1820,7 +1920,10 @@ namespace GoContactSyncMod
             if (WindowState == FormWindowState.Minimized)
             {
                 Hide();
+                return;
             }
+
+            UpdateSyncOptionsLayout();
         }
 
         private void NotifyIcon_MouseDoubleClick(object sender, MouseEventArgs e)
@@ -2267,6 +2370,7 @@ namespace GoContactSyncMod
             googleContactGroupLabel.Visible = btSyncContacts.Checked;
             btSyncContactsForceRTF.Visible = btSyncContacts.Checked;
             SyncPhotosCheckBox.Visible = btSyncContacts.Checked;
+            UpdateSyncOptionsLayout();
             ValidateSyncButton();
         }
 
@@ -2285,12 +2389,14 @@ namespace GoContactSyncMod
             btSyncAppointmentsForceRTF.Visible = btSyncAppointments.Checked;
             btSyncAppointmentsPrivate.Visible = SyncRemindersCheckBox.Visible = btSyncAppointments.Checked;
             IncludePastRemindersCheckBox.Visible = btSyncAppointments.Checked && SyncRemindersCheckBox.Checked;
+            UpdateSyncOptionsLayout();
             ValidateSyncButton();
         }
 
         private void SyncReminders_CheckedChanged(object sender, EventArgs e)
         {
             IncludePastRemindersCheckBox.Visible = btSyncAppointments.Checked && SyncRemindersCheckBox.Checked;
+            UpdateSyncOptionsLayout();
         }
 
         private void CmbSyncProfile_SelectedIndexChanged(object sender, EventArgs e)
@@ -2586,6 +2692,20 @@ namespace GoContactSyncMod
 
         private void LinkLabelRevokeAuthentication_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
+            var result = MessageBox.Show(
+                this,
+                "Do you want to revoke the saved Google authorization?\r\n\r\nYou will need to sign in again the next time GO Contact Sync Mod connects to Google.",
+                Application.ProductName,
+                MessageBoxButtons.YesNo,
+                MessageBoxIcon.Warning,
+                MessageBoxDefaultButton.Button2);
+
+            if (result != DialogResult.Yes)
+            {
+                Log.Information("Revoking Google authorization was canceled by the user.");
+                return;
+            }
+
             RevokeAuthentication();
         }
 
