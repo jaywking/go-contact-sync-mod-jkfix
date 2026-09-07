@@ -75,6 +75,37 @@ namespace GoContactSyncMod
         #endregion
 
         internal Synchronizer sync;
+        private WindowPlacementManager windowPlacement;
+
+        private static WindowPlacement LoadWindowPlacement()
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.OpenSubKey(AppRootKey))
+                {
+                    var json = key?.GetValue("WindowPlacement") as string;
+                    return string.IsNullOrEmpty(json) ? null : Newtonsoft.Json.JsonConvert.DeserializeObject<WindowPlacement>(json);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not read window placement; using a screen-fitting default.");
+                return null;
+            }
+        }
+
+        private static void SaveWindowPlacement(WindowPlacement placement)
+        {
+            try
+            {
+                using (var key = Registry.CurrentUser.CreateSubKey(AppRootKey))
+                    key.SetValue("WindowPlacement", Newtonsoft.Json.JsonConvert.SerializeObject(placement), RegistryValueKind.String);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not save window placement.");
+            }
+        }
         private SyncOption syncOption;
         private DateTime lastSync;
         private bool requestClose = false;
@@ -459,6 +490,14 @@ namespace GoContactSyncMod
                 return;
             }
 
+            if (groupBox1 != null)
+            {
+                var previousTop = groupBox1.Top;
+                LayoutAutomationGroup(groupBox1, syncOptionBox.ItemHeight);
+                // Give the reclaimed space to the adjacent Sync Options section.
+                syncOptionsGroupBox.Height += groupBox1.Top - previousTop;
+            }
+
             var topContentBottom = btSyncAppointments.Bottom;
             var topControls = new Control[]
             {
@@ -539,19 +578,94 @@ namespace GoContactSyncMod
             PersistCurrentProfileSettings();
         }
 
+        internal static void LayoutAutomationGroup(GroupBox group, int rowPitch)
+        {
+            var startup = group.Controls["runAtStartupCheckBox"];
+            var autoSync = group.Controls["autoSyncCheckBox"];
+            var report = group.Controls["reportSyncResultCheckBox"];
+            var interval = group.Controls["autoSyncInterval"];
+            var idle = group.Controls["btSyncOnlyIdle"];
+            var intervalLabel = group.Controls["label1"];
+            var units = group.Controls["label4"];
+            var nextSync = group.Controls["nextSyncLabel"];
+            if (startup == null || autoSync == null || report == null || interval == null ||
+                idle == null || intervalLabel == null || units == null || nextSync == null)
+                return;
+
+            var gap = Math.Max(3, rowPitch / 5);
+            var rowTop = group.Font.Height + gap;
+            foreach (var control in new[] { startup, autoSync, report })
+            {
+                var preferred = control.GetPreferredSize(Size.Empty);
+                control.AutoSize = false;
+                control.SetBounds(control.Left, rowTop, Math.Max(control.Width, preferred.Width), rowPitch);
+                rowTop += rowPitch;
+            }
+
+            var intervalControls = new[] { interval, idle, intervalLabel, units };
+            var intervalHeight = 0;
+            foreach (var control in intervalControls)
+                intervalHeight = Math.Max(intervalHeight, control.Height);
+            rowTop += gap;
+            foreach (var control in intervalControls)
+                control.Top = rowTop + (intervalHeight - control.Height) / 2;
+
+            // Reserve the countdown row even when auto-sync hides it, avoiding a jump
+            // in the layout when the user toggles Auto Sync.
+            nextSync.Top = rowTop + intervalHeight + gap;
+            var bottom = group.Bottom;
+            group.Height = nextSync.Bottom + gap;
+            group.Top = bottom - group.Height;
+        }
+
         private readonly Icon IconError = Properties.Resources.sync_error;
         private readonly Icon Icon0 = Properties.Resources.sync;
-        private readonly Icon Icon30 = Properties.Resources.sync_30;
-        private readonly Icon Icon60 = Properties.Resources.sync_60;
-        private readonly Icon Icon90 = Properties.Resources.sync_90;
-        private readonly Icon Icon120 = Properties.Resources.sync_120;
-        private readonly Icon Icon150 = Properties.Resources.sync_150;
-        private readonly Icon Icon180 = Properties.Resources.sync_180;
-        private readonly Icon Icon210 = Properties.Resources.sync_210;
-        private readonly Icon Icon240 = Properties.Resources.sync_240;
-        private readonly Icon Icon270 = Properties.Resources.sync_270;
-        private readonly Icon Icon300 = Properties.Resources.sync_300;
-        private readonly Icon Icon330 = Properties.Resources.sync_330;
+        private readonly Icon Icon30 = CreateRotatedSyncIcon(30);
+        private readonly Icon Icon60 = CreateRotatedSyncIcon(60);
+        private readonly Icon Icon90 = CreateRotatedSyncIcon(90);
+        private readonly Icon Icon120 = CreateRotatedSyncIcon(120);
+        private readonly Icon Icon150 = CreateRotatedSyncIcon(150);
+        private readonly Icon Icon180 = CreateRotatedSyncIcon(180);
+        private readonly Icon Icon210 = CreateRotatedSyncIcon(210);
+        private readonly Icon Icon240 = CreateRotatedSyncIcon(240);
+        private readonly Icon Icon270 = CreateRotatedSyncIcon(270);
+        private readonly Icon Icon300 = CreateRotatedSyncIcon(300);
+        private readonly Icon Icon330 = CreateRotatedSyncIcon(330);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool DestroyIcon(IntPtr handle);
+
+        // Render the existing green app icon at each animation angle once, rather
+        // than switching back to the legacy gray artwork while a sync is running.
+        internal static Icon CreateRotatedSyncIcon(int angle)
+        {
+            using (var source = Properties.Resources.sync.ToBitmap())
+            using (var frame = new Bitmap(source.Width, source.Height))
+            {
+                using (var graphics = Graphics.FromImage(frame))
+                {
+                    graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                    graphics.TranslateTransform(frame.Width / 2f, frame.Height / 2f);
+                    graphics.RotateTransform(angle);
+                    graphics.DrawImage(source, -source.Width / 2f, -source.Height / 2f, source.Width, source.Height);
+                }
+                var handle = frame.GetHicon();
+                try
+                {
+                    using (var borrowed = Icon.FromHandle(handle))
+                        return (Icon)borrowed.Clone();
+                }
+                finally { DestroyIcon(handle); }
+            }
+        }
+
+        private void DisposeTrayAnimationIcons()
+        {
+            foreach (var icon in new[] { Icon30, Icon60, Icon90, Icon120, Icon150, Icon180,
+                Icon210, Icon240, Icon270, Icon300, Icon330 })
+                icon?.Dispose();
+        }
 
         private SettingsForm()
         {
@@ -1840,6 +1954,7 @@ namespace GoContactSyncMod
 
         private void SettingsForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            windowPlacement?.SaveCurrent();
             if (!requestClose)
             {
                 SaveSettings();
@@ -1919,6 +2034,7 @@ namespace GoContactSyncMod
         {
             if (WindowState == FormWindowState.Minimized)
             {
+                windowPlacement?.SaveCurrent();
                 Hide();
                 return;
             }
@@ -2146,9 +2262,12 @@ namespace GoContactSyncMod
             {
                 var oldState = WindowState;
 
+                if (windowPlacement != null)
+                    windowPlacement.RestoreForShow();
+                else
+                    WindowState = FormWindowState.Normal;
                 Show();
                 Activate();
-                WindowState = FormWindowState.Normal;
 
                 using (var filter = new OleMessageFilter())
                 {
@@ -2213,6 +2332,7 @@ namespace GoContactSyncMod
 
         private void HideForm()
         {
+            windowPlacement?.SaveCurrent();
             WindowState = FormWindowState.Minimized;
             Hide();
         }
@@ -2249,6 +2369,7 @@ namespace GoContactSyncMod
 
         private void SettingsForm_Load(object sender, EventArgs e)
         {
+            windowPlacement = new WindowPlacementManager(this, LoadWindowPlacement(), SaveWindowPlacement);
             var showWindowOnStart = !"0".Equals(Environment.GetEnvironmentVariable("GCSM_SHOW_WINDOW_ON_START"), StringComparison.Ordinal);
             if (string.IsNullOrEmpty(UserName.Text) ||
                 string.IsNullOrEmpty(cmbSyncProfile.Text))

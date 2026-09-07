@@ -489,14 +489,46 @@ namespace GoContactSyncMod
 
         public static void SyncContacts(Synchronizer sync)
         {
+            SyncContacts(sync, SyncContact);
+        }
+
+        internal static void SyncContacts(Synchronizer sync, Action<ContactMatch, Synchronizer> prepareContact)
+        {
             for (var i = 0; i < sync.Contacts.Count; i++)
             {
                 var match = sync.Contacts[i];
-                var s = $"Syncing contact {i + 1} of {sync.Contacts.Count}: {match}";
+                var s = $"Syncing contact {i + 1} of {sync.Contacts.Count}: {match.DiagnosticName}";
                 NotificationReceived?.Invoke(s);
                 Log.Debug(s);
-                SyncContact(match, sync);
+                // A partly mapped contact must never reach the save/delete phase.
+                match.PreparationFailed = true;
+                var initialContactCount = sync.Contacts.Count;
+                try
+                {
+                    prepareContact(match, sync);
+                    match.PreparationFailed = false;
+                }
+                catch (Exception ex) when (IsContactPreparationFailure(ex))
+                {
+                    // Conflict resolution can append replacement matches. Discard those
+                    // if preparing their source failed, while retaining unrelated contacts.
+                    if (sync.Contacts.Count > initialContactCount)
+                        sync.Contacts.RemoveRange(initialContactCount, sync.Contacts.Count - initialContactCount);
+                    sync.ReportContactPreparationFailure(match, ex);
+                }
             }
+        }
+
+        internal static bool IsContactPreparationFailure(Exception exception)
+        {
+            for (var current = exception; current != null; current = current.InnerException)
+            {
+                if (current is OperationCanceledException || current is OutOfMemoryException ||
+                    current is AccessViolationException ||
+                    (current is ApplicationException && current.Message == "Cancelled"))
+                    return false;
+            }
+            return true;
         }
 
         private static void SyncContactNoGoogle(Outlook.ContactItem outlookContactItem, ContactMatch match, Synchronizer sync)
@@ -666,6 +698,14 @@ namespace GoContactSyncMod
                 var googleEtagDiffersFromLastSync = !string.IsNullOrEmpty(match.GoogleContact?.ETag)
                     && !string.IsNullOrEmpty(match.OutlookContact.UserProperties.LastEtag)
                     && !string.Equals(match.GoogleContact.ETag, match.OutlookContact.UserProperties.LastEtag, StringComparison.Ordinal);
+
+                if (sync.SyncOption == SyncOption.OutlookToGoogleOnly && match.matchedById)
+                {
+                    if (NeedsOutlookToGooglePhoneRepair(oc, match.GoogleContact) ||
+                        sync.OutlookContentNeedsUpdate(oc, match, OutlookUpdatedSinceLastSync))
+                        sync.UpdateContact(oc, match.GoogleContact, match);
+                    return;
+                }
 
                 //ToDo: Too many updates, check if we can use eTag
                 //if (!GoogleUpdatedSinceLastSync)
@@ -855,22 +895,24 @@ namespace GoContactSyncMod
                 {
                     throw new ArgumentNullException("ContactMatch has all peers null.");
                 }
+
+                // Refresh only after successful preparation; a second read failure must not
+                // hide the original error or prevent release of the Outlook COM object.
+                if (oc != null && match.OutlookContact != null)
+                    match.OutlookContact.Update(oc, sync);
             }
             catch (ArgumentNullException)
             {
                 throw;
             }
-            catch (Exception e)
+            catch (Exception e) when (IsContactPreparationFailure(e))
             {
-                throw new Exception($"Error syncing contact {(match.OutlookContact != null ? match.OutlookContact.FileAs : ContactPropertiesUtils.GetGoogleUniqueIdentifierName(match.GoogleContact))}: {e.Message}", e);
+                throw new Exception($"Error syncing contact {match.DiagnosticName}: {e.Message}", e);
             }
             finally
             {
-                if (oc != null && match.OutlookContact != null)
-                {
-                    match.OutlookContact.Update(oc, sync);
+                if (oc != null)
                     Marshal.ReleaseComObject(oc);
-                }
             }
         }
 
@@ -1040,6 +1082,14 @@ namespace GoContactSyncMod
         public bool matchedById = false;
 
         public bool GoogleContactDirty;
+        internal string PendingContentFingerprint;
+        internal bool PreparationFailed;
+
+        // Use cached identifiers when reporting a failure; do not read Outlook again or
+        // invoke field-mapping/name-formatting helpers on a potentially malformed contact.
+        internal string DiagnosticName => !string.IsNullOrWhiteSpace(OutlookContact?.FileAs)
+            ? OutlookContact.FileAs
+            : GoogleContact?.ResourceName ?? OutlookContact?.EntryID ?? "Unidentified contact";
 
         public ContactMatch(OutlookContactInfo outlookContact, Person googleContact)
         {

@@ -25,17 +25,21 @@ If you found this repo by searching, these are the issue phrases this fork targe
 
 ## Current Stable Release
 
-- App informational version: `4.3.0-jkfix.7`
-- Release tag: `v4.3.0-jkfix.7`
-- Release page: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/tag/v4.3.0-jkfix.7`
+- App informational version: `4.3.0-jkfix.8`
+- Numeric assembly/file/installer version: `4.3.5`
+- Release tag: `v4.3.0-jkfix.8`
+- Release page: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/tag/v4.3.0-jkfix.8`
 
 Direct download links:
 
-- MSI installer: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.7/SetupGCSM-4.3.0-jkfix.7.msi`
-- ZIP (portable): `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.7/GOContactSyncMod-4.3.0-jkfix.7.zip`
+- MSI installer: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.8/SetupGCSM-4.3.0-jkfix.8.msi`
+- ZIP (portable): `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.8/GOContactSyncMod-4.3.0-jkfix.8.zip`
 
 ## Support
 
+- Complete change list and upgrade behavior: [jkfix.8 release notes](docs/RELEASE_NOTES_jkfix.8.md).
+- Fix details and validation: [Contact sync fixes](docs/CONTACT_SYNC_FIXES.md).
+- Test instructions: [Local validation](docs/TESTING_CONTENT_TRACKING.md).
 - Download updates from GitHub Releases: `https://github.com/jaywking/go-contact-sync-mod-jkfix/releases`
 - Report bugs and regressions on GitHub Issues: `https://github.com/jaywking/go-contact-sync-mod-jkfix/issues`
 - Support guide: `SUPPORT.md`
@@ -51,16 +55,16 @@ Direct download links:
 - Fixes per-profile folder persistence so each sync profile reliably keeps its own selected source/target folders.
 - Adds private build/install/package automation scripts.
 
-## Quick Install (Pinned to jkfix.7)
+## Quick Install (Pinned to jkfix.8)
 
 1. Download MSI from the release page.
-2. Run `SetupGCSM-4.3.0-jkfix.7.msi`.
-3. Launch app and verify title shows `4.3.0-jkfix.7`.
+2. Run `SetupGCSM-4.3.0-jkfix.8.msi`.
+3. Launch app and verify title shows `4.3.0-jkfix.8`.
 4. Select correct sync profile and Outlook source folder.
 
 Portable ZIP option:
 
-1. Download `GOContactSyncMod-4.3.0-jkfix.7.zip`.
+1. Download `GOContactSyncMod-4.3.0-jkfix.8.zip`.
 2. Extract anywhere.
 3. Run `GOContactSync.exe`.
 
@@ -82,14 +86,23 @@ Known limitations:
 
 - Contacts that match multiple Google contacts are intentionally skipped until duplicates are resolved.
 
-SHA256 checksums for release assets:
-
-- `GOContactSyncMod-4.3.0-jkfix.7.zip`  
-  `9396C8F8F28CB40116F4C019B49FE994204519EDB3303AD504D1335AFBC4DC0A`
-- `SetupGCSM-4.3.0-jkfix.7.msi`  
-  `F595A735B3D79D131001E87DD1A15B6917516E4CBF59C4F785D10D9C5AE9F449`
+SHA256 checksums are included in [SHA256SUMS.txt](https://github.com/jaywking/go-contact-sync-mod-jkfix/releases/download/v4.3.0-jkfix.8/SHA256SUMS.txt) on the release page.
 
 ## Changelog
+
+### 4.3.0-jkfix.8
+
+Numeric version **4.3.5** allows an MSI upgrade from jkfix.7 (4.3.4). All seven changes are integrated in this release. See [release notes](docs/RELEASE_NOTES_jkfix.8.md) for migration behavior and validation.
+
+- Remember window size, position, and maximized state across restarts and tray reopening. First-run sizing fits the current monitor, and restored bounds are constrained to its working area. Placement is stored per Windows user, independently of sync profiles.
+- Automation checkbox rows now use the same vertical pitch as the Sync Options list. The group fits its controls and countdown row, returning excess space to Sync Options.
+- The tray uses the existing green application icon, including its rotating sync animation, instead of the legacy gray artwork. The warning/error indicator remains distinct.
+- Preserve Google favorites in **Outlook to Google Only** mode when Outlook has no matching category. Ordinary labels still follow Outlook categories; two-way category behavior is unchanged.
+- Contact preparation failures are isolated: the affected contact is counted as an error and excluded from saving/deletion for that run, while other contacts continue. Existing baselines are retained for retry; corrupt baselines are not silently replaced. Cancellation still stops the sync.
+- Failed contact saves now count as errors without subtracting successful saves. Google write failures retain the final API error after retries, instead of producing a misleading zero-error summary.
+- In **Outlook to Google Only** mode, linked contacts use content fingerprints to detect edits, including changes made immediately after syncing. Timestamp-only bookkeeping changes no longer trigger repeat updates. Other sync modes and calendar change detection are unchanged.
+- On the first run, existing contacts that the legacy checks consider unchanged get an observed baseline without rewriting Google. This does not repair older missed edits; make a fresh edit after that first run to sync them. Contacts already due for an update follow the normal update path.
+- Baselines contain hashes, not contact field values, under `%APPDATA%\GoContactSyncMOD\ContentBaselines\v1`. They are isolated by profile, Google account, source folder, selected Google label, and Outlook contact. A failed update remains pending across restarts. A synchronized baseline is recorded only after the contact, Outlook link metadata, and enabled photo operations succeed.
 
 ### 4.3.0-jkfix.7
 

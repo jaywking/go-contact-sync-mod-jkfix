@@ -28,6 +28,11 @@ namespace GoContactSyncMod
             {
                 components.Dispose();
             }
+            if (disposing)
+            {
+                windowPlacement?.Dispose();
+                DisposeTrayAnimationIcons();
+            }
             base.Dispose(disposing);
         }
 

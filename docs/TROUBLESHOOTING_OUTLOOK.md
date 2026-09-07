@@ -2,6 +2,8 @@
 
 Use this guide when `jkfix` cannot connect to Outlook or reports Office registry/configuration problems.
 
+For one contact failing during an otherwise connected sync, see [contact sync fixes and recovery](CONTACT_SYNC_FIXES.md) and [support guidance](../SUPPORT.md). A per-contact preparation error alone does not establish an Office installation problem.
+
 ## Common Symptoms
 
 - `Could not connect to Microsoft Outlook`

@@ -376,6 +376,9 @@
     <Compile Include="ContactPropertiesUtils.cs" />
     <Compile Include="ContactsMatcher.cs" />
     <Compile Include="ContactSync.cs" />
+    <Compile Include="ContactContentFingerprint.cs" />
+    <Compile Include="ContactContentTracker.cs" />
+    <Compile Include="WindowPlacement.cs" />
     <Compile Include="DuplicateDataException.cs" />
     <Compile Include="Encryption.cs" />
     <Compile Include="ErrorHandler.cs" />
@@ -475,6 +478,18 @@
     <Compile Include="Utilities.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="..\README.md">
+      <Link>README.md</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\SUPPORT.md">
+      <Link>SUPPORT.md</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\docs\*.md">
+      <Link>docs\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Resources\contacts-sync.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -111,6 +111,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="ContactContentTrackingTests.cs" />
+    <Compile Include="ContactSaveReportingTests.cs" />
+    <Compile Include="ContactPreparationIsolationTests.cs" />
+    <Compile Include="WindowPlacementTests.cs" />
+    <Compile Include="GoogleGroupPreservationTests.cs" />
     <Compile Include="GoogleAPITests.cs" />
     <Compile Include="GoogleAppointmentBuilder.cs" />
     <Compile Include="GoogleContactBuilder.cs" />

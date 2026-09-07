@@ -47,6 +47,29 @@ namespace GoContactSyncMod
         private static readonly object _syncRoot = new object();
         internal static string UserName;
 
+        private ContactContentTracker contentTracker;
+        private bool contentBaselineNoticeShown;
+        private ContactContentTracker ContentTracker => contentTracker ?? (contentTracker = new ContactContentTracker(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "GoContactSyncMOD", "ContentBaselines", "v1")));
+
+        private static string ContentTrackingKey(ContactItem contact) => ContactContentFingerprint.Key(
+            SyncProfile, UserName, SyncContactsFolder, SyncContactsGoogleGroup, contact.EntryID);
+
+        internal bool OutlookContentNeedsUpdate(ContactItem contact, ContactMatch match, bool legacyUpdateRequired)
+        {
+            var fingerprint = ContactContentFingerprint.Capture(contact, UseFileAs, SyncPhotos);
+            var decision = ContentTracker.Check(ContentTrackingKey(contact), match.GoogleContact.ResourceName,
+                fingerprint, legacyUpdateRequired);
+            if (decision == ContactContentDecision.BaselineRecorded && !contentBaselineNoticeShown)
+            {
+                Log.Information("Initializing local content baselines for existing contacts without rewriting Google. Subsequent Outlook edits will be tracked by content.");
+                contentBaselineNoticeShown = true;
+            }
+            if (decision == ContactContentDecision.Update)
+                Log.Debug($"Outlook content changed or an update is pending: {match.OutlookContact.FileAs}.");
+            return decision == ContactContentDecision.Update;
+        }
+
         private readonly PolicyRegistry registry = null;
         private readonly PolicyRegistry registryWrapPolicies = null;
 
@@ -2931,20 +2954,39 @@ namespace GoContactSyncMod
 
         public void SaveContacts(List<ContactMatch> contacts)
         {
+            SaveContacts(contacts, SaveContact);
+        }
+
+        internal void ReportContactPreparationFailure(ContactMatch match, Exception error)
+        {
+            ErrorCount++;
+            var message = $"Failed to prepare contact: {match.DiagnosticName}. " +
+                $"This contact will not be saved during this sync; preparation will be retried on the next sync.\n{error.Message}";
+            var reported = new Exception(message, error);
+            if (ErrorEncountered != null)
+                ErrorEncountered("Error", reported);
+            else
+                Log.Error(reported, message);
+        }
+
+        internal void SaveContacts(List<ContactMatch> contacts, Func<ContactMatch, bool> saveContact)
+        {
             foreach (var match in contacts)
             {
+                if (match.PreparationFailed)
+                    continue; // Already reported and counted during preparation.
                 try
                 {
-                    SaveContact(match);
+                    if (!saveContact(match))
+                        throw new ApplicationException("Contact save returned no successful result.");
                 }
                 catch (Exception ex)
                 {
+                    ErrorCount++;
                     if (ErrorEncountered != null)
                     {
-                        ErrorCount++;
-                        SyncedCount--;
-                        var s = match.OutlookContact != null ? match.OutlookContact.FileAs : ContactPropertiesUtils.GetGoogleUniqueIdentifierName(match.GoogleContact);
-                        var message = $"Failed to synchronize contact: {s}. \nPlease check the contact, if any Email already exists on Google contacts side or if there is too much or invalid data in the notes field. \nIf the problem persists, please try recreating the contact or report the error:\n{ex.Message}";
+                        var s = match.DiagnosticName;
+                        var message = $"Failed to synchronize contact: {s}.\n{ex.Message}";
                         var newEx = new Exception(message, ex);
                         ErrorEncountered("Error", newEx);
                     }
@@ -2958,6 +3000,13 @@ namespace GoContactSyncMod
 
         public bool SaveContact(ContactMatch match)
         {
+            return SaveContact(match, SaveGoogleContact);
+        }
+
+        internal bool SaveContact(ContactMatch match, Func<ContactMatch, bool> saveGoogleContact)
+        {
+            if (match.PreparationFailed)
+                return false;
             if (match.GoogleContact != null && match.OutlookContact != null)
             {
                 var missingOutlookGoogleId = string.IsNullOrEmpty(match.OutlookContact.UserProperties.GoogleContactId);
@@ -2966,7 +3015,7 @@ namespace GoContactSyncMod
                 if (match.GoogleContactDirty || missingOutlookGoogleId || missingGoogleOutlookId)
                 {
                     // Google contact was modified or link metadata must be persisted. Save once to keep stable matching IDs.
-                    if (SaveGoogleContact(match))
+                    if (saveGoogleContact(match))
                     {
                         SyncedCount++;
                         if (match.GoogleContactDirty)
@@ -3434,6 +3483,16 @@ namespace GoContactSyncMod
         {
             var oc = match.OutlookContact.GetOriginalItemFromOutlook();
 
+            if (SyncOption == SyncOption.OutlookToGoogleOnly && match.PendingContentFingerprint != null)
+                return ContentTracker.SaveUpdate(ContentTrackingKey(oc), match.PendingContentFingerprint,
+                    () => SaveGoogleContactAndMetadata(match, oc, true));
+
+            return SaveGoogleContactAndMetadata(match, oc, false) != null;
+        }
+
+        private string SaveGoogleContactAndMetadata(ContactMatch match, ContactItem oc, bool requirePhotoSuccess)
+        {
+
             ContactPropertiesUtils.SetGoogleOutlookId(match.GoogleContact, oc);
             match.GoogleContact = SaveGoogleContact(match.GoogleContact);
 
@@ -3444,13 +3503,14 @@ namespace GoContactSyncMod
                 //Now save the Photo
                 if (Synchronizer.SyncPhotos)
                 {
-                    SaveGooglePhoto(match, oc);
+                    if (!SaveGooglePhoto(match, oc) && requirePhotoSuccess)
+                        throw new ApplicationException("Contact photo update failed; content update remains pending for retry.");
                 }
-                return true;
+                return match.GoogleContact.ResourceName;
             }
             else
             {
-                return false;
+                return null;
             }
         }
 
@@ -3474,18 +3534,10 @@ namespace GoContactSyncMod
             {
                 var policyWrap = registryWrapPolicies.Get<PolicyWrap>("Contact Write");
 
-                var result = policyWrap.ExecuteAndCapture(() =>
+                return policyWrap.Execute(() =>
                 {
                     return GooglePeopleResource.CreateContact(gc).Execute();
                 });
-
-                return result.Result;
-            }
-            catch (Google.GoogleApiException ex) when (ex.Error != null && ex.Error.ErrorResponseContent.Contains("Resource has been exhausted (e.g. check quota)")) //ToDo: Check counterpart of GDataRequestException in Google People Api (is it really GoogleApiException?)
-            {
-                var bio = ContactPropertiesUtils.GetGoogleBiographyValue(gc);
-                Log.Warning($"Skipping contact {gc.ToLogString()}, it has too large notes field: {bio.Length} characters. Please shorten notes in Outlook contact, otherwise you risk loosing information stored there.");
-                return null; //ToDo: Check, what happens if returned null? Maybe one reason for the intermittently deleted Outlook contacts?
             }
             catch (Google.GoogleApiException ex)
             {
@@ -3521,34 +3573,14 @@ namespace GoContactSyncMod
 
                 var policyWrap = registryWrapPolicies.Get<PolicyWrap>("Contact Write");
 
-                var result = policyWrap.ExecuteAndCapture(() =>
+                return policyWrap.Execute(() =>
                 {
                     return updateRequest.Execute();
                 });
-
-                return result.Result;
             }
             catch (ApplicationException)
             {//Application already handled internally, no additonal log
                 throw;
-            }
-            catch (Google.GoogleApiException ex) when (ex.Error != null && ex.Error.ErrorResponseContent.Contains("Resource has been exhausted (e.g. check quota)")) //ToDo: Check counterpart of GDataRequestException in Google People Api, really GoogleApiException?
-            {//ToDo: Check counterpart of GDataRequestException in Google People Api, really GoogleApiException?
-                var bio = ContactPropertiesUtils.GetGoogleBiographyValue(gc);
-                Log.Warning($"Skipping contact {gc.ToLogString()}, it has too large notes field: {bio.Length} characters. Please shorten notes in Outlook contact, otherwise you risk loosing information stored there.");
-                return null;
-            }
-            catch (Google.GoogleApiException ex) when (ex.Error != null && ex.Error.ErrorResponseContent.Contains("Invalid country code: ZZ"))
-            {//ToDo: Check counterpart of GDataRequestException in Google People Api, really GoogleApiException?
-                Log.Warning($"Skipping contact {gc.ToLogString()}, it has invalid value in country code. Please recreate contact at Google, otherwise you risk loosing information stored there.");
-                return null;
-            }
-            catch (Google.GoogleApiException ex) when (ex.Error != null && ex.Error.ErrorResponseContent.Contains("extendedProperty count limit exceeded: 10"))
-            {//ToDo: Check counterpart of GDataRequestException in Google People Api, really GoogleApiException?
-                //some contacts despite having less extendedProperties still can throw such exception
-                Log.Debug($"{gc.ToLogString()}: too many extended properties exception thrown: {gc.ClientData.Count}");
-                UpdateTooManyExtendedProperties(gc, true);
-                return UpdateGoogleContact(gc); //ToDo: Check, maybe endless loop? Maybe one reason for the performance issues reported?
             }
             catch (Google.GoogleApiException ex)
             {//ToDo: Check counterpart of GDataRequestException in Google People Api, really GoogleApiException?                
@@ -4116,7 +4148,7 @@ namespace GoContactSyncMod
             }
         }
 
-        public void SaveGooglePhoto(ContactMatch match, ContactItem oc)
+        public bool SaveGooglePhoto(ContactMatch match, ContactItem oc)
         {
             var hasOutlookPhoto = oc.HasPhoto();
 
@@ -4131,6 +4163,8 @@ namespace GoContactSyncMod
                         ContactPropertiesUtils.SetOutlookGoogleId(oc, match.GoogleContact);
                         Save(ref oc);
                     }
+                    else
+                        return false;
                 }
             }
             else
@@ -4148,7 +4182,7 @@ namespace GoContactSyncMod
                             ex.HttpStatusCode == HttpStatusCode.NotFound)
                     {
                         Log.Error(ex, $"Exception while deleting Google contact photo for id {match.GoogleContact.ResourceName}");
-
+                        return false;
                     }
 
                     //Just save the Outlook Contact to have the same lastUpdate date as Google
@@ -4156,6 +4190,7 @@ namespace GoContactSyncMod
                     Save(ref oc);
                 }
             }
+            return true;
         }
 
         public bool SaveGooglePhoto(Person person, Bitmap photoBitmap)
@@ -4309,9 +4344,16 @@ namespace GoContactSyncMod
         /// </summary>
         public void UpdateContact(ContactItem master, Person slave, ContactMatch match)
         {
+            // Capture before reading fields for the outgoing update, not after the save.
+            var originalModificationTime = SyncOption == SyncOption.OutlookToGoogleOnly
+                ? master.LastModificationTime : DateTime.MinValue;
+            match.PendingContentFingerprint = SyncOption == SyncOption.OutlookToGoogleOnly
+                ? ContactContentFingerprint.Capture(master, UseFileAs, SyncPhotos) : null;
             match.GoogleContactDirty = true;
             //ContactSync.UpdateContact(master, slave, UseFileAs);
             UpdateContact(master, slave);
+            if (match.PendingContentFingerprint != null && master.LastModificationTime != originalModificationTime)
+                throw new ApplicationException("Outlook contact changed while preparing the update; retry the sync.");
         }
 
         /// <summary>
@@ -4331,24 +4373,10 @@ namespace GoContactSyncMod
             }
         }
 
-        /// <summary>
-        /// Updates Google contact's groups from Outlook contact
-        /// </summary>
-        private void OverwriteContactGroups(ContactItem master, Person slave)
+        // Keep membership reconciliation testable without Outlook COM or Google API access.
+        internal void RemoveObsoleteGoogleGroups(Person slave, string[] cats)
         {
-            //Contact group name "Starred in Android" is a reserved legacy name, was used in old Contact API. 
-            //Backward compliancy by using the system "contactGroups/starred" group instead
-            if (!string.IsNullOrEmpty(master.Categories) && master.Categories.Contains("Starred in Android"))
-            {
-                Utilities.RemoveOutlookGroup(master, "Starred in Android");
-                Utilities.AddOutlookGroup(master, "starred");
-            }
-
             var currentGroups = Utilities.GetGoogleGroups(this, slave);
-
-            // get outlook categories
-            var cats = Utilities.GetOutlookGroups(master.Categories);
-
 
             // remove obsolete groups
             var remove = new Collection<ContactGroup>();
@@ -4366,6 +4394,13 @@ namespace GoContactSyncMod
                 }
                 if (!found)
                 {
+                    // In one-way sync, a Google favorite need not have an Outlook category.
+                    // Use the resource ID so localized names and user labels remain distinct.
+                    if (SyncOption == SyncOption.OutlookToGoogleOnly &&
+                        group.ResourceName == "contactGroups/starred")
+                    {
+                        continue;
+                    }
                     if (!string.IsNullOrEmpty(SyncContactsGoogleGroup) && group.ResourceName == SyncContactsGoogleGroup)
                     {
                         continue;
@@ -4378,6 +4413,25 @@ namespace GoContactSyncMod
                 Utilities.RemoveGoogleGroup(slave, remove[0]);
                 remove.RemoveAt(0);
             }
+        }
+
+        /// <summary>
+        /// Updates Google contact's groups from Outlook contact
+        /// </summary>
+        private void OverwriteContactGroups(ContactItem master, Person slave)
+        {
+            //Contact group name "Starred in Android" is a reserved legacy name, was used in old Contact API.
+            //Backward compliancy by using the system "contactGroups/starred" group instead
+            if (!string.IsNullOrEmpty(master.Categories) && master.Categories.Contains("Starred in Android"))
+            {
+                Utilities.RemoveOutlookGroup(master, "Starred in Android");
+                Utilities.AddOutlookGroup(master, "starred");
+            }
+
+            // get outlook categories
+            var cats = Utilities.GetOutlookGroups(master.Categories);
+
+            RemoveObsoleteGoogleGroups(slave, cats);
 
             // add new groups
             ContactGroup g;
