@@ -43,7 +43,7 @@ namespace GoContactSyncMod
             if (googleContactEntry != null && googleContactEntry.UpdateTimeDateTimeOffset.HasValue)
             {
                 if (googleContactEntry.UpdateTimeDateTimeOffset is DateTimeOffset time)
-                    lastUpdated = time.DateTime;
+                    lastUpdated = time.LocalDateTime;
                 else
                     DateTime.TryParse(googleContactEntry.UpdateTimeDateTimeOffset.ToString(),out lastUpdated);                
             }
