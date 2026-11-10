@@ -54,23 +54,11 @@ namespace GoContactSyncMod
                 {
                     var email1Address = olc.Email1Address;
                 }
-                catch (Exception ex)
+                catch (Exception ex) when (IsContactPreparationFailure(ex))
                 {
-                    var message = string.Empty;
-                    try
-                    {
-                        message = $"{message} {olc.ToLogString()}.";
-                        //remember skippedOutlookIds to later not delete them if found on Google side
-                        skippedOutlookIds.Add(string.Copy(olc.EntryID));
-                    }
-                    catch
-                    {
-                        message = $"Can't access contact details for outlook contact, got {ex.GetType()} - '{ex.Message}'. Skipping";
-                    }
-
-                    Log.Warning(message);
-                    sync.SkippedCount++;
-                    sync.SkippedCountNotMatches++;
+                    SkipUnreadableOutlookContact(sync, skippedOutlookIds, i, sync.OutlookContacts.Count, ex,
+                        () => olc.FileAs, () => olc.FullName, () => olc.Subject,
+                        () => ReadContactFolder(olc), () => olc.EntryID);
                     continue;
                 }
 
@@ -181,6 +169,68 @@ namespace GoContactSyncMod
                     outlookContactsWithoutOutlookGoogleId.Add(olci);
                 }
             }
+        }
+
+        private static string ReadContactProperty(Func<string> read)
+        {
+            try
+            {
+                return read();
+            }
+            catch (Exception ex) when (IsContactPreparationFailure(ex))
+            {
+                return null;
+            }
+        }
+
+        private static string ReadContactDiagnostic(Func<string> read)
+        {
+            return ReadContactProperty(read)?.Replace("\r", " ").Replace("\n", " ").Trim();
+        }
+
+        private static string ReadContactFolder(Outlook.ContactItem contact)
+        {
+            object parent = null;
+            try
+            {
+                parent = contact.Parent;
+                return (parent as Outlook.MAPIFolder)?.FullFolderPath;
+            }
+            finally
+            {
+                if (parent != null && Marshal.IsComObject(parent))
+                    Marshal.ReleaseComObject(parent);
+            }
+        }
+
+        internal static void SkipUnreadableOutlookContact(Synchronizer sync, List<string> skippedOutlookIds,
+            int index, int total, Exception failure, Func<string> readFileAs, Func<string> readFullName,
+            Func<string> readSubject, Func<string> readFolder, Func<string> readEntryId)
+        {
+            // Diagnostic reads must not erase one another or the original exception.
+            var name = ReadContactDiagnostic(readFileAs);
+            if (string.IsNullOrWhiteSpace(name)) name = ReadContactDiagnostic(readFullName);
+            if (string.IsNullOrWhiteSpace(name)) name = ReadContactDiagnostic(readSubject);
+            var folder = ReadContactDiagnostic(readFolder);
+            var entryId = ReadContactProperty(readEntryId);
+            var location = $"folder '{(string.IsNullOrWhiteSpace(folder) ? "unavailable" : folder)}', item {index} of {total}";
+            var identity = string.IsNullOrWhiteSpace(name) ? "(name unavailable)" : name;
+            var message = $"Cannot read Outlook contact '{identity}' in {location}. Failed reading Email1Address: " +
+                $"{failure.GetType().FullName} (0x{failure.HResult:X8}): {failure.Message.Replace("\r", " ").Replace("\n", " ")}.";
+
+            sync.SkippedCount++;
+            sync.SkippedCountNotMatches++;
+            if (string.IsNullOrWhiteSpace(entryId))
+            {
+                // Without the ID, the Google peer could otherwise be treated as deleted.
+                var stopped = message + " Sync stopped before contact saving because EntryID is unavailable; " +
+                    "the linked Google contact cannot be protected from deletion.";
+                Log.Warning(stopped);
+                throw new InvalidOperationException(stopped, failure);
+            }
+
+            skippedOutlookIds.Add(entryId);
+            Log.Warning(message + " Contact skipped; its linked Google contact will also be skipped.");
         }
 
         private static bool IsMatching(OutlookContactInfo olci, Person entry)
@@ -320,6 +370,13 @@ namespace GoContactSyncMod
         /// <returns>Returns a list of match pairs (outlook contact + google contact) for all contact. Those that weren't matche will have it's peer set to null</returns>
         public static List<ContactMatch> MatchContacts(Synchronizer sync, out DuplicateDataException duplicatesFound)
         {
+            return MatchContacts(sync, out duplicatesFound, (result, skippedIds, unmatched) =>
+                MatchContactsById(sync, result, skippedIds, unmatched));
+        }
+
+        internal static List<ContactMatch> MatchContacts(Synchronizer sync, out DuplicateDataException duplicatesFound,
+            Action<List<ContactMatch>, List<string>, Collection<OutlookContactInfo>> matchById)
+        {
             Log.Information("Matching Outlook and Google contacts...");
             var result = new List<ContactMatch>();
 
@@ -334,7 +391,7 @@ namespace GoContactSyncMod
 
             var outlookContactsWithoutOutlookGoogleId = new Collection<OutlookContactInfo>();
 
-            MatchContactsById(sync, result, skippedOutlookIds, outlookContactsWithoutOutlookGoogleId);
+            matchById(result, skippedOutlookIds, outlookContactsWithoutOutlookGoogleId);
 
             MatchContactsByProperties(sync, result, outlookContactsWithoutOutlookGoogleId, out duplicatesFound);
 

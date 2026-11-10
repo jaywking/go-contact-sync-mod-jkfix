@@ -114,6 +114,7 @@
     <Compile Include="ContactContentTrackingTests.cs" />
     <Compile Include="ContactSaveReportingTests.cs" />
     <Compile Include="ContactPreparationIsolationTests.cs" />
+    <Compile Include="UnreadableContactTests.cs" />
     <Compile Include="WindowPlacementTests.cs" />
     <Compile Include="GoogleGroupPreservationTests.cs" />
     <Compile Include="GoogleAPITests.cs" />

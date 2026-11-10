@@ -7,7 +7,7 @@ Content tracking applies to linked contacts in **Outlook to Google Only** mode. 
 Build `UnitTests/UnitTests.csproj` with the repository's restored packages and .NET Framework 4.8.1 reference assemblies. All fixtures are included in the release source tree; see [build guidance](CONTACT_SYNC_FIXES.md#running-and-building-this-release). Run only the following NUnit fixtures using VSTest:
 
 ```text
-/TestCaseFilter:FullyQualifiedName~WindowPlacementTests|FullyQualifiedName~ContactContentTrackingTests|FullyQualifiedName~GoogleGroupPreservationTests|FullyQualifiedName~ContactSaveReportingTests|FullyQualifiedName~ContactPreparationIsolationTests|FullyQualifiedName~SameEmailTests
+/TestCaseFilter:FullyQualifiedName~WindowPlacementTests|FullyQualifiedName~ContactContentTrackingTests|FullyQualifiedName~GoogleGroupPreservationTests|FullyQualifiedName~ContactSaveReportingTests|FullyQualifiedName~ContactPreparationIsolationTests|FullyQualifiedName~SameEmailTests|FullyQualifiedName~UnreadableContactTests
 ```
 
 Do not run the entire legacy suite as a local unit check: other fixtures log into Outlook and Google and can create/delete test records. The integrated Release build passed all 66 tests.
@@ -17,6 +17,18 @@ The content tests cover edits inside the former two-minute window, unchanged con
 Save-reporting tests cover false returns, exceptions, continuation to later contacts, preserved Google error details, successful retries, exhausted retries, and accurate counters. Preparation tests cover partially mapped contacts, deletion prevention, corrupt and pending baselines, retry after recovery, cancellation, failed conflict replacements, and a missing cached Outlook ID.
 
 The MSI and ZIP contain all four sync fixes and three interface improvements listed in the [jkfix.8 release notes](RELEASE_NOTES_jkfix.8.md). The display version is `4.3.0-jkfix.8`; numeric assembly/file/installer version is `4.3.5`.
+
+## Local change for support request #858
+
+`UnreadableContactTests` exercises the production failure handler and matching orchestration with injected property reads, without constructing COM objects. It does not start Outlook, authenticate with Google, or read/write real contacts. The tests simulate an `Email1Address` COM failure and cover name/subject fallbacks, missing identity, folder failures, missing/blank EntryID, the original error and HRESULT, single-line diagnostics, cancellation, linked Google exclusion, and continuation to other contacts. Native COM access itself still requires confirmation from an affected tester.
+
+The warning reads File As, full name, and subject independently, with the folder path and item position as additional context. A readable EntryID excludes the linked Google contact from subsequent processing. If EntryID is unavailable, matching throws before the later group/contact/appointment sync and save stages. This does not roll back work already performed during loading or duplicate cleanup. It identifies the failing item when possible; it does not repair the Outlook COM conflict. Item positions are diagnostic context for that run, not persistent IDs.
+
+Build the application and test project in Release/x86. If the machine-wide targeting pack is absent, the already-cached `packages/Microsoft.NETFramework.ReferenceAssemblies.net481.1.0.3/build/` directory can be passed as MSBuild's `TargetFrameworkRootPath`; no retargeting or package update is required. Run the isolated fixture filter above, not the legacy live-account fixtures.
+
+Local validation on November 10, 2026: the Release/x86 application and test builds passed using the cached reference assemblies. All 79 selected tests passed: the 66 existing isolated tests plus 13 new #858 cases. VSTest required execution outside the sandbox for its loopback connection. No live-contact verification, installation, version bump, commit, or publication was performed. The successful TRX report is under `dist/Issue 858 Test Results/`.
+
+For manual confirmation, use a tester who already experiences the warning. Check that the warning identifies the item or reports the available fallbacks, retains the original COM error, and either skips the identified pair or clearly stops when EntryID cannot be read. Do not deliberately corrupt real contacts. A normal successful sync alone does not validate the failure path.
 
 ## Live test sequence
 
